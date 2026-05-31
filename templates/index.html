@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Welcome back.</h1>
+      <p>Track your listening habits and explore your top songs, artists, and albums.</p>
+    </div>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Profile</h2>
+      <div class="profile-grid">
+        <div><strong>Name</strong></div><div>{{ profile.display_name }}</div>
+        <div><strong>Email</strong></div><div>{{ profile.email }}</div>
+        <div><strong>Country</strong></div><div>{{ profile.country }}</div>
+        <div><strong>Account</strong></div><div>{{ profile.product }}</div>
+      </div>
+    </article>
+
+    <article class="card">
+      <h2>Recently Played</h2>
+      {% if recent_tracks %}
+        <div class="card-content">
+          {% for track in recent_tracks %}
+            <div class="track-row">
+              <div>
+                <div class="track-name">{{ track.name }}</div>
+                <div class="track-meta">{{ track.artist }} — {{ track.album }}</div>
+              </div>
+              <div class="track-time">{{ track.played_at_text }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="loading">No recent songs found.</p>
+      {% endif %}
+    </article>
+
+    <article class="card">
+      <h2>Top Songs</h2>
+      {% if top_songs %}
+        <div class="card-content">
+          {% for item in top_songs %}
+            <div class="rank-row">
+              <span class="rank">#{{ item.rank }}</span>
+              <div>
+                <div class="track-name">{{ item.name }}</div>
+                <div class="track-meta">{{ item.artist }} • {{ item.plays }} plays</div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="loading">No top songs available.</p>
+      {% endif %}
+    </article>
+  </section>
+{% endblock %}

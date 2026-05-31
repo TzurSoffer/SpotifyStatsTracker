@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Spotify Stats Dashboard by Tzur Soffer</h1>
+      <p>All your listening history displayed here in a clean overview.</p>
+    </div>
+  </section>
+
+  <section class="track-summary-grid">
+    <article class="track-summary-card">
+      <h3>Total Tracks</h3>
+      <p>{{ total }}</p>
+    </article>
+    <article class="track-summary-card">
+      <h3>Artists Tracked</h3>
+      <p>{{ unique_artists }}</p>
+    </article>
+    <article class="track-summary-card">
+      <h3>Total Listening Time</h3>
+      <p>{{ total_duration }}</p>
+    </article>
+  </section>
+
+  <section class="track-list">
+    {% if tracks %}
+      {% for track in tracks %}
+        <article class="track-card">
+          <img class="track-cover" src="{{ track.image_url }}" alt="Album cover for {{ track.name }}" />
+          <div class="track-details">
+            <div class="track-details-top">
+              <div class="track-header">
+                <a href="{{ track.url }}" target="_blank" rel="noreferrer noopener">
+                  <h3>{{ track.name }}</h3>
+                </a>
+                <div class="track-meta">{{ track.artist }} · {{ track.album_name }}</div>
+                <div class="track-meta">Played at {{ track.played_at_text }}</div>
+              </div>
+              <div class="track-attributes">
+                <span class="track-label">Duration: {{ track.duration }}</span>
+                <span class="track-label">Popularity: {{ track.popularity }}</span>
+                <span class="track-label">Track {{ track.track_number }} · Disc {{ track.disc_number }}</span>
+                <span class="track-label">{{ "Explicit" if track.explicit else "Clean" }}</span>
+                {% if track.isrc %}<span class="track-label">ISRC: {{ track.isrc }}</span>{% endif %}
+              </div>
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    {% else %}
+      <p class="loading">No history tracks found. Add some listening data in the Database folder first.</p>
+    {% endif %}
+  </section>
+{% endblock %}

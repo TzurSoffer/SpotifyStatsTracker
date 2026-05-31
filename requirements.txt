@@ -1,0 +1,5 @@
+Flask>=2.3,<3
+Flask-Cors>=4.0.0
+spotipyFree>=1.5.0,<2
+redis
+websockets

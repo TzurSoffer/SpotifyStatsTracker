@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="title" content="Spotify Tracker by Tzur Soffer" />
+    <meta name="description" content="Keep track of your Spotify listening habits with this Spotify Tracker." />
+    <title>Spotify Tracker by Tzur Soffer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Spotify Tracker</div>
+      <nav class="nav-links">
+        <a href="/">Dashboard</a>
+      </nav>
+    </header>
+
+    <main class="page">{% block content %}{% endblock %}</main>
+  </body>
+</html>
