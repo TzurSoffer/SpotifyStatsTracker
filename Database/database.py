@@ -3,7 +3,8 @@ import json
 from PIL import Image
 from io import BytesIO
 
-from Database.Formatters.spotifyClient import Client
+from Formatters.spotifyClient import Client
+from Importers.StreamingHistoryImporter import Importer
 
 USER = "Tzur"
 
@@ -44,13 +45,13 @@ def addToHistoryFromTrackData(timestamp, track):
     addToHistoryFromData(Client.formatTrack(timestamp, track))
 
 
-def addToHistoryFromImport(importedTrack):
-    timestamp = importedTrack.get("timestamp", str(datetime.datetime.now().timestamp()))
-    meta = Client.formatTrack(timestamp, importedTrack)
-    saveImg(meta["imageUrl"], meta["imageId"])
+def importSpotifyHistory(exportedHistory):
     with open("history.json", "r") as f:
         history = json.load(f)
-    history.append(meta)
+    importer = Importer()
+    for meta in importer.importAcountHistory(exportedHistory):
+        saveImg(meta["imageUrl"], meta["imageId"])
+        history.append(meta)
     with open("history.json", "w") as f:
         json.dump(history, f, indent=4)
 
@@ -65,6 +66,11 @@ if __name__ == "__main__":
 
     # pysole.probe(runRemainingCode=True, printStartupCode=True)
     # track = sp.track("67Hna13dNDkZvBpTXRIaOJ")
-    with open("track.json", "r") as f:
-        track = json.load(f)
-    addToHistoryFromRaw(str(datetime.datetime.now().timestamp()), track)
+    # with open("track.json", "r") as f:
+    #     track = json.load(f)
+    # addToHistoryFromRaw(str(datetime.datetime.now().timestamp()), track)
+
+
+    with open("importMe.json", "r") as f:
+        history = json.load(f)
+    importSpotifyHistory(history)

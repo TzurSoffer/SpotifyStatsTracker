@@ -10,3 +10,4 @@ instance/
 Streaming*.*
 secrets.json
 cookies.json
+Database/img/*/tracks/*
