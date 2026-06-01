@@ -1,11 +1,6 @@
-import SpotipyFree
 import datetime
 
-class client:
-    def __init__(self, token):
-        self.token = token
-        self.sp = SpotipyFree.Spotify(auth=token)
-
+class Client:
     @staticmethod
     def _formatDuration(ms: int) -> str:
         seconds = max(0, ms // 1000)
@@ -44,7 +39,7 @@ class client:
             playedAt = datetime.datetime.fromtimestamp(0)
         duration  = track["duration_ms"] or 0
         album = track.get("album", {}) or {}
-        artists, artistsText = client._formatArtists(album)
+        artists, artistsText = Client._formatArtists(album)
 
         return {
             "name": track["name"],
@@ -55,11 +50,11 @@ class client:
             "playedAtText": playedAt.strftime("%Y-%m-%d %H:%M"),
             "artists": artists,
             "artistsText": artistsText,
-            "album": client._formatAlbum(album),
+            "album": Client._formatAlbum(album),
             "imageUrl": album["images"][0]["url"],
             "imageId": album["id"],
             "duration": duration,
-            "durationText": client._formatDuration(duration),
+            "durationText": Client._formatDuration(duration),
             "explicit": bool(track.get("explicit", False)),
             "isrc": track["external_ids"]["isrc"],
             "discNumber": track["disc_number"],

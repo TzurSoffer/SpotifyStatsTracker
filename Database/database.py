@@ -3,7 +3,7 @@ import json
 from PIL import Image
 from io import BytesIO
 
-from spotifyClient import client
+from Database.Formatters.spotifyClient import Client
 
 USER = "Tzur"
 
@@ -38,11 +38,11 @@ def addToHistoryFromData(meta):
         json.dump(history, f, indent=4)
 
 def addToHistoryFromTrackData(timestamp, track):
-    addToHistoryFromData(client.formatTrack(timestamp, track))
+    addToHistoryFromData(Client.formatTrack(timestamp, track))
 
 def addToHistoryFromImport(importedTrack):
     timestamp = importedTrack.get("timestamp", str(datetime.datetime.now().timestamp()))
-    meta = client.formatTrack(timestamp, importedTrack)
+    meta = Client.formatTrack(timestamp, importedTrack)
     saveImg(meta["imageUrl"], meta["imageId"])
     with open('history.json', 'r') as f:
         history = json.load(f)
