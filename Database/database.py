@@ -11,6 +11,7 @@ downloadedImagesPath = f"./img/{USER}/tracks/metadata.json"
 with open(downloadedImagesPath, "r") as f:
     downloadedImages = json.load(f)
 
+
 def saveImg(url, id):
     if id in downloadedImages:
         print(f"Image for {id} already downloaded.")
@@ -29,36 +30,41 @@ def saveImg(url, id):
     except Exception as e:
         print(f"Error saving image: {e}")
 
+
 def addToHistoryFromData(meta):
     saveImg(meta["imageUrl"], meta["imageId"])
-    with open('history.json', 'r') as f:
+    with open("history.json", "r") as f:
         history = json.load(f)
     history.append(meta)
-    with open('history.json', 'w') as f:
+    with open("history.json", "w") as f:
         json.dump(history, f, indent=4)
+
 
 def addToHistoryFromTrackData(timestamp, track):
     addToHistoryFromData(Client.formatTrack(timestamp, track))
+
 
 def addToHistoryFromImport(importedTrack):
     timestamp = importedTrack.get("timestamp", str(datetime.datetime.now().timestamp()))
     meta = Client.formatTrack(timestamp, importedTrack)
     saveImg(meta["imageUrl"], meta["imageId"])
-    with open('history.json', 'r') as f:
+    with open("history.json", "r") as f:
         history = json.load(f)
     history.append(meta)
-    with open('history.json', 'w') as f:
+    with open("history.json", "w") as f:
         json.dump(history, f, indent=4)
+
 
 if __name__ == "__main__":
     import SpotipyFree
     import datetime
     import pysole
+
     sp = SpotipyFree.Spotify()
     sp.login()
 
     # pysole.probe(runRemainingCode=True, printStartupCode=True)
     # track = sp.track("67Hna13dNDkZvBpTXRIaOJ")
-    with open('track.json', 'r') as f:
+    with open("track.json", "r") as f:
         track = json.load(f)
     addToHistoryFromRaw(str(datetime.datetime.now().timestamp()), track)

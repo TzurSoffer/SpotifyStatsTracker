@@ -23,12 +23,14 @@ def loadHistory(start=None, end=None) -> list:
     except Exception:
         return []
 
+
 def getLatestHistory(limit=None):
     tracks = loadHistory()
     if limit is not None:
         size = len(tracks)
-        tracks = tracks[max(size-limit, 0):size]
+        tracks = tracks[max(size - limit, 0) : size]
     return tracks
+
 
 @app.route("/")
 def dashboard():
@@ -38,7 +40,11 @@ def dashboard():
     totalDurationMs = sum(track["duration"] for track in tracks)
     durationHours = totalDurationMs // 3_600_000
     durationMinutes = (totalDurationMs % 3_600_000) // 60_000
-    totalDuration = f"{durationHours}h {durationMinutes}m" if durationHours else f"{durationMinutes}m"
+    totalDuration = (
+        f"{durationHours}h {durationMinutes}m"
+        if durationHours
+        else f"{durationMinutes}m"
+    )
 
     uniqueArtists = len({track["artist"] for track in tracks if track["artist"]})
 
