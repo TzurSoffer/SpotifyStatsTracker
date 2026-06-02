@@ -35,7 +35,7 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./Database:/app/Database/img
+      - ./Database:/app/Database/Users
       - ./secrets:/app/secrets
     environment:
       - FLASK_APP=app.py
