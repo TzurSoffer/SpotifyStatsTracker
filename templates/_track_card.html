@@ -1,6 +1,6 @@
 <article class="track-card">
-  {% set img_id = track.get('imageId') or track.get('imageId', '') %}
-  <img class="track-cover" src="/img/{{ username }}/tracks/{{ img_id }}.jpeg" alt="Album cover for {{ track.get('name','') }}" />
+  {% set imgId = track.get('imageId') or track.get('imageId', '') %}
+  <img class="track-cover" src="/img/{{ username }}/tracks/{{ imgId }}.jpeg" alt="Album cover for {{ track.get('name','') }}" />
   <div class="track-details">
     <div class="track-details-top">
       <div class="track-header">

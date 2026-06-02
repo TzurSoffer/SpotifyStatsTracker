@@ -8,7 +8,7 @@
   </section>
 
   <section class="card import-card">
-    <form id="import-form" action="{{ url_for('import_history') }}" method="post" enctype="multipart/form-data">
+    <form id="import-form" action="{{ url_for('importHistory') }}" method="post" enctype="multipart/form-data">
       <label for="history_file">Spotify history JSON file</label>
       <input id="history_file" name="history_file" type="file" accept=".json" required />
       <button class="primary-button" type="submit">Start Import</button>
@@ -37,7 +37,7 @@
 
     async function fetchProgress() {
       try {
-        const response = await fetch('{{ url_for('import_progress') }}');
+        const response = await fetch('{{ url_for('importProgress') }}');
         if (!response.ok) {
           return;
         }

@@ -11,7 +11,7 @@
     <article class="card">
       <h2>Profile</h2>
       <div class="profile-grid">
-        <div><strong>Name</strong></div><div>{{ profile.display_name }}</div>
+        <div><strong>Name</strong></div><div>{{ profile.displayName }}</div>
         <div><strong>Email</strong></div><div>{{ profile.email }}</div>
         <div><strong>Country</strong></div><div>{{ profile.country }}</div>
         <div><strong>Account</strong></div><div>{{ profile.product }}</div>
@@ -20,15 +20,15 @@
 
     <article class="card">
       <h2>Recently Played</h2>
-      {% if recent_tracks %}
+      {% if recentTracks %}
         <div class="card-content">
-          {% for track in recent_tracks %}
+          {% for track in recentTracks %}
             <div class="track-row">
               <div>
                 <div class="track-name">{{ track.name }}</div>
                 <div class="track-meta">{{ track.artist }} — {{ track.album }}</div>
               </div>
-              <div class="track-time">{{ track.played_at_text }}</div>
+              <div class="track-time">{{ track.playedAtText }}</div>
             </div>
           {% endfor %}
         </div>
@@ -39,9 +39,9 @@
 
     <article class="card">
       <h2>Top Songs</h2>
-      {% if top_songs %}
+      {% if topSongs %}
         <div class="card-content">
-          {% for item in top_songs %}
+          {% for item in topSongs %}
             <div class="rank-row">
               <span class="rank">#{{ item.rank }}</span>
               <div>

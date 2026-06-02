@@ -462,5 +462,269 @@
         "isrc": "",
         "discNumber": 1,
         "trackNumber": 4
+    },
+    {
+        "name": "Close To Me",
+        "releaseDateText": "2020-07-17",
+        "id": "2GjMaJ7DacMIkgoe8oMXGg",
+        "url": "https://open.spotify.com/track/2GjMaJ7DacMIkgoe8oMXGg",
+        "playedAt": "2026-06-02T02:14:06.799000Z",
+        "playedAtText": "1969-12-31 16:00",
+        "timePlayed": 177101,
+        "artists": [
+            {
+                "name": "Ellie Goulding",
+                "url": "https://open.spotify.com/artist/0X2BH1fck6amBIoJhDVmmJ"
+            },
+            {
+                "name": "Diplo",
+                "url": "https://open.spotify.com/artist/5fMUXHkw8R8eOP2RNVYEZX"
+            },
+            {
+                "name": "Swae Lee",
+                "url": "https://open.spotify.com/artist/1zNqQNIdeOUZHb8zbZRFMX"
+            }
+        ],
+        "artistsText": "Ellie Goulding, Diplo, Swae Lee",
+        "album": {
+            "name": "Brightest Blue",
+            "url": "https://open.spotify.com/album/7hCfgsycCFH4bBjEfUwh3S",
+            "id": "7hCfgsycCFH4bBjEfUwh3S",
+            "imageUrl": "https://i.scdn.co/image/ab67616d00001e025f76dbd311a0782823550b30",
+            "totalTracks": 18,
+            "releaseDateText": "2020-07-17"
+        },
+        "imageUrl": "https://i.scdn.co/image/ab67616d00001e025f76dbd311a0782823550b30",
+        "imageId": "7hCfgsycCFH4bBjEfUwh3S",
+        "duration": 182626,
+        "durationText": "3:02",
+        "explicit": true,
+        "isrc": "",
+        "discNumber": 1,
+        "trackNumber": 4
+    },
+    {
+        "name": "Doubles",
+        "releaseDateText": "2018-10-26",
+        "id": "11a2oW4eCZn1qXrkl2fP51",
+        "url": "https://open.spotify.com/track/11a2oW4eCZn1qXrkl2fP51",
+        "playedAt": "2026-06-02T02:17:09.002000Z",
+        "playedAtText": "1969-12-31 16:00",
+        "timePlayed": 4375,
+        "artists": [
+            {
+                "name": "Flecks",
+                "url": "https://open.spotify.com/artist/5xPebViwCi1vLh20kKF8rw"
+            }
+        ],
+        "artistsText": "Flecks",
+        "album": {
+            "name": "Doubles",
+            "url": "https://open.spotify.com/album/6d1s56cDoDiHlbMKgxtjXV",
+            "id": "6d1s56cDoDiHlbMKgxtjXV",
+            "imageUrl": "https://i.scdn.co/image/ab67616d00001e028c21ddb6ee14e7c6c28a62a0",
+            "totalTracks": 1,
+            "releaseDateText": "2018-10-26"
+        },
+        "imageUrl": "https://i.scdn.co/image/ab67616d00001e028c21ddb6ee14e7c6c28a62a0",
+        "imageId": "6d1s56cDoDiHlbMKgxtjXV",
+        "duration": 263679,
+        "durationText": "4:23",
+        "explicit": false,
+        "isrc": "",
+        "discNumber": 1,
+        "trackNumber": 1
+    },
+    {
+        "name": "Doubles",
+        "releaseDateText": "2018-10-26",
+        "id": "11a2oW4eCZn1qXrkl2fP51",
+        "url": "https://open.spotify.com/track/11a2oW4eCZn1qXrkl2fP51",
+        "playedAt": "2026-06-02T02:17:09.002000Z",
+        "playedAtText": "1969-12-31 16:00",
+        "timePlayed": 47251,
+        "artists": [
+            {
+                "name": "Flecks",
+                "url": "https://open.spotify.com/artist/5xPebViwCi1vLh20kKF8rw"
+            }
+        ],
+        "artistsText": "Flecks",
+        "album": {
+            "name": "Doubles",
+            "url": "https://open.spotify.com/album/6d1s56cDoDiHlbMKgxtjXV",
+            "id": "6d1s56cDoDiHlbMKgxtjXV",
+            "imageUrl": "https://i.scdn.co/image/ab67616d00001e028c21ddb6ee14e7c6c28a62a0",
+            "totalTracks": 1,
+            "releaseDateText": "2018-10-26"
+        },
+        "imageUrl": "https://i.scdn.co/image/ab67616d00001e028c21ddb6ee14e7c6c28a62a0",
+        "imageId": "6d1s56cDoDiHlbMKgxtjXV",
+        "duration": 263679,
+        "durationText": "4:23",
+        "explicit": false,
+        "isrc": "",
+        "discNumber": 1,
+        "trackNumber": 1
+    },
+    {
+        "name": "Doubles",
+        "releaseDateText": "2018-10-26",
+        "id": "11a2oW4eCZn1qXrkl2fP51",
+        "url": "https://open.spotify.com/track/11a2oW4eCZn1qXrkl2fP51",
+        "playedAt": "2026-06-02T02:17:09.002000Z",
+        "playedAtText": "1969-12-31 16:00",
+        "timePlayed": 173823,
+        "artists": [
+            {
+                "name": "Flecks",
+                "url": "https://open.spotify.com/artist/5xPebViwCi1vLh20kKF8rw"
+            }
+        ],
+        "artistsText": "Flecks",
+        "album": {
+            "name": "Doubles",
+            "url": "https://open.spotify.com/album/6d1s56cDoDiHlbMKgxtjXV",
+            "id": "6d1s56cDoDiHlbMKgxtjXV",
+            "imageUrl": "https://i.scdn.co/image/ab67616d00001e028c21ddb6ee14e7c6c28a62a0",
+            "totalTracks": 1,
+            "releaseDateText": "2018-10-26"
+        },
+        "imageUrl": "https://i.scdn.co/image/ab67616d00001e028c21ddb6ee14e7c6c28a62a0",
+        "imageId": "6d1s56cDoDiHlbMKgxtjXV",
+        "duration": 263679,
+        "durationText": "4:23",
+        "explicit": false,
+        "isrc": "",
+        "discNumber": 1,
+        "trackNumber": 1
+    },
+    {
+        "name": "The Missing Road",
+        "releaseDateText": "2021-02-02",
+        "id": "5bVFTk3QgUFaBZFObRD4F4",
+        "url": "https://open.spotify.com/track/5bVFTk3QgUFaBZFObRD4F4",
+        "playedAt": "2026-06-02T02:21:33.205000Z",
+        "playedAtText": "1969-12-31 16:00",
+        "timePlayed": 2929,
+        "artists": [
+            {
+                "name": "Radical Face",
+                "url": "https://open.spotify.com/artist/5EM6xJN2QNk0cL7EEm9HR9"
+            }
+        ],
+        "artistsText": "Radical Face",
+        "album": {
+            "name": "Hidden Hollow, Vol. One - Singles",
+            "url": "https://open.spotify.com/album/0NDgJqbdVlFSXkd7P99fll",
+            "id": "0NDgJqbdVlFSXkd7P99fll",
+            "imageUrl": "https://i.scdn.co/image/ab67616d00001e02b94c3c99107a5013f4113d45",
+            "totalTracks": 6,
+            "releaseDateText": "2021-02-02"
+        },
+        "imageUrl": "https://i.scdn.co/image/ab67616d00001e02b94c3c99107a5013f4113d45",
+        "imageId": "0NDgJqbdVlFSXkd7P99fll",
+        "duration": 248385,
+        "durationText": "4:08",
+        "explicit": false,
+        "isrc": "",
+        "discNumber": 1,
+        "trackNumber": 1
+    },
+    {
+        "name": "The Missing Road",
+        "releaseDateText": "2021-02-02",
+        "id": "5bVFTk3QgUFaBZFObRD4F4",
+        "url": "https://open.spotify.com/track/5bVFTk3QgUFaBZFObRD4F4",
+        "playedAt": "2026-06-02T02:21:33.205000Z",
+        "playedAtText": "1969-12-31 16:00",
+        "timePlayed": 39716,
+        "artists": [
+            {
+                "name": "Radical Face",
+                "url": "https://open.spotify.com/artist/5EM6xJN2QNk0cL7EEm9HR9"
+            }
+        ],
+        "artistsText": "Radical Face",
+        "album": {
+            "name": "Hidden Hollow, Vol. One - Singles",
+            "url": "https://open.spotify.com/album/0NDgJqbdVlFSXkd7P99fll",
+            "id": "0NDgJqbdVlFSXkd7P99fll",
+            "imageUrl": "https://i.scdn.co/image/ab67616d00001e02b94c3c99107a5013f4113d45",
+            "totalTracks": 6,
+            "releaseDateText": "2021-02-02"
+        },
+        "imageUrl": "https://i.scdn.co/image/ab67616d00001e02b94c3c99107a5013f4113d45",
+        "imageId": "0NDgJqbdVlFSXkd7P99fll",
+        "duration": 248385,
+        "durationText": "4:08",
+        "explicit": false,
+        "isrc": "",
+        "discNumber": 1,
+        "trackNumber": 1
+    },
+    {
+        "name": "The Missing Road",
+        "releaseDateText": "2021-02-02",
+        "id": "5bVFTk3QgUFaBZFObRD4F4",
+        "url": "https://open.spotify.com/track/5bVFTk3QgUFaBZFObRD4F4",
+        "playedAt": "2026-06-02T02:21:33.205000Z",
+        "playedAtText": "1969-12-31 16:00",
+        "timePlayed": 59414,
+        "artists": [
+            {
+                "name": "Radical Face",
+                "url": "https://open.spotify.com/artist/5EM6xJN2QNk0cL7EEm9HR9"
+            }
+        ],
+        "artistsText": "Radical Face",
+        "album": {
+            "name": "Hidden Hollow, Vol. One - Singles",
+            "url": "https://open.spotify.com/album/0NDgJqbdVlFSXkd7P99fll",
+            "id": "0NDgJqbdVlFSXkd7P99fll",
+            "imageUrl": "https://i.scdn.co/image/ab67616d00001e02b94c3c99107a5013f4113d45",
+            "totalTracks": 6,
+            "releaseDateText": "2021-02-02"
+        },
+        "imageUrl": "https://i.scdn.co/image/ab67616d00001e02b94c3c99107a5013f4113d45",
+        "imageId": "0NDgJqbdVlFSXkd7P99fll",
+        "duration": 248385,
+        "durationText": "4:08",
+        "explicit": false,
+        "isrc": "",
+        "discNumber": 1,
+        "trackNumber": 1
+    },
+    {
+        "name": "The Missing Road",
+        "releaseDateText": "2021-02-02",
+        "id": "5bVFTk3QgUFaBZFObRD4F4",
+        "url": "https://open.spotify.com/track/5bVFTk3QgUFaBZFObRD4F4",
+        "playedAt": "2026-06-02T02:21:33.205000Z",
+        "playedAtText": "1969-12-31 16:00",
+        "timePlayed": 152060,
+        "artists": [
+            {
+                "name": "Radical Face",
+                "url": "https://open.spotify.com/artist/5EM6xJN2QNk0cL7EEm9HR9"
+            }
+        ],
+        "artistsText": "Radical Face",
+        "album": {
+            "name": "Hidden Hollow, Vol. One - Singles",
+            "url": "https://open.spotify.com/album/0NDgJqbdVlFSXkd7P99fll",
+            "id": "0NDgJqbdVlFSXkd7P99fll",
+            "imageUrl": "https://i.scdn.co/image/ab67616d00001e02b94c3c99107a5013f4113d45",
+            "totalTracks": 6,
+            "releaseDateText": "2021-02-02"
+        },
+        "imageUrl": "https://i.scdn.co/image/ab67616d00001e02b94c3c99107a5013f4113d45",
+        "imageId": "0NDgJqbdVlFSXkd7P99fll",
+        "duration": 248385,
+        "durationText": "4:08",
+        "explicit": false,
+        "isrc": "",
+        "discNumber": 1,
+        "trackNumber": 1
     }
 ]

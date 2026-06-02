@@ -7,21 +7,6 @@
     </div>
   </section>
 
-  <section class="track-summary-grid">
-    <article class="track-summary-card">
-      <h3>Total Tracks</h3>
-      <p>{{ total }}</p>
-    </article>
-    <article class="track-summary-card">
-      <h3>Artists Tracked</h3>
-      <p>{{ uniqueArtists }}</p>
-    </article>
-    <article class="track-summary-card">
-      <h3>Total Listening Time</h3>
-      <p>{{ totalDuration }}</p>
-    </article>
-  </section>
-
   <section class="track-list">
     {% if tracks %}
       {% for track in tracks %}
