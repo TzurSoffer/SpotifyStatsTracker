@@ -294,5 +294,173 @@
         "isrc": "",
         "discNumber": 1,
         "trackNumber": 1
+    },
+    {
+        "name": "Dorian",
+        "releaseDateText": "2013-09-30",
+        "id": "0ZilhIkx5dOgRSi7GdnKqp",
+        "url": "https://open.spotify.com/track/0ZilhIkx5dOgRSi7GdnKqp",
+        "playedAt": "2026-06-02T02:07:30.218000Z",
+        "playedAtText": "1969-12-31 16:00",
+        "timePlayed": 5058,
+        "artists": [
+            {
+                "name": "Agnes Obel",
+                "url": "https://open.spotify.com/artist/1rKrEdI6GKirxWHxIUPYms"
+            }
+        ],
+        "artistsText": "Agnes Obel",
+        "album": {
+            "name": "Aventine",
+            "url": "https://open.spotify.com/album/011ifQyKbsMAWCUFDZiMaa",
+            "id": "011ifQyKbsMAWCUFDZiMaa",
+            "imageUrl": "https://i.scdn.co/image/ab67616d00001e0284d4ab818e83c41d95f6956b",
+            "totalTracks": 11,
+            "releaseDateText": "2013-09-30"
+        },
+        "imageUrl": "https://i.scdn.co/image/ab67616d00001e0284d4ab818e83c41d95f6956b",
+        "imageId": "011ifQyKbsMAWCUFDZiMaa",
+        "duration": 288334,
+        "durationText": "4:48",
+        "explicit": false,
+        "isrc": "",
+        "discNumber": 1,
+        "trackNumber": 3
+    },
+    {
+        "name": "Hula Girl",
+        "releaseDateText": "2025-11-14",
+        "id": "2Q12wBicdnoLI6F343qcHk",
+        "url": "https://open.spotify.com/track/2Q12wBicdnoLI6F343qcHk",
+        "playedAt": "2026-06-02T02:12:18.979000Z",
+        "playedAtText": "1969-12-31 16:00",
+        "timePlayed": 5709,
+        "artists": [
+            {
+                "name": "The Neighbourhood",
+                "url": "https://open.spotify.com/artist/77SW9BnxLY8rJ0RciFqkHh"
+            }
+        ],
+        "artistsText": "The Neighbourhood",
+        "album": {
+            "name": "(((((ultraSOUND)))))",
+            "url": "https://open.spotify.com/album/1xsGQbqvVDIq3sCJDUzQZv",
+            "id": "1xsGQbqvVDIq3sCJDUzQZv",
+            "imageUrl": "https://i.scdn.co/image/ab67616d00001e02ba9dd3d335c249d54e04ca1d",
+            "totalTracks": 15,
+            "releaseDateText": "2025-11-14"
+        },
+        "imageUrl": "https://i.scdn.co/image/ab67616d00001e02ba9dd3d335c249d54e04ca1d",
+        "imageId": "1xsGQbqvVDIq3sCJDUzQZv",
+        "duration": 244973,
+        "durationText": "4:04",
+        "explicit": false,
+        "isrc": "",
+        "discNumber": 1,
+        "trackNumber": 1
+    },
+    {
+        "name": "Hula Girl",
+        "releaseDateText": "2025-11-14",
+        "id": "2Q12wBicdnoLI6F343qcHk",
+        "url": "https://open.spotify.com/track/2Q12wBicdnoLI6F343qcHk",
+        "playedAt": "2026-06-02T02:12:18.979000Z",
+        "playedAtText": "1969-12-31 16:00",
+        "timePlayed": 68020,
+        "artists": [
+            {
+                "name": "The Neighbourhood",
+                "url": "https://open.spotify.com/artist/77SW9BnxLY8rJ0RciFqkHh"
+            }
+        ],
+        "artistsText": "The Neighbourhood",
+        "album": {
+            "name": "(((((ultraSOUND)))))",
+            "url": "https://open.spotify.com/album/1xsGQbqvVDIq3sCJDUzQZv",
+            "id": "1xsGQbqvVDIq3sCJDUzQZv",
+            "imageUrl": "https://i.scdn.co/image/ab67616d00001e02ba9dd3d335c249d54e04ca1d",
+            "totalTracks": 15,
+            "releaseDateText": "2025-11-14"
+        },
+        "imageUrl": "https://i.scdn.co/image/ab67616d00001e02ba9dd3d335c249d54e04ca1d",
+        "imageId": "1xsGQbqvVDIq3sCJDUzQZv",
+        "duration": 244973,
+        "durationText": "4:04",
+        "explicit": false,
+        "isrc": "",
+        "discNumber": 1,
+        "trackNumber": 1
+    },
+    {
+        "name": "Hula Girl",
+        "releaseDateText": "2025-11-14",
+        "id": "2Q12wBicdnoLI6F343qcHk",
+        "url": "https://open.spotify.com/track/2Q12wBicdnoLI6F343qcHk",
+        "playedAt": "2026-06-02T02:12:18.979000Z",
+        "playedAtText": "1969-12-31 16:00",
+        "timePlayed": 95353,
+        "artists": [
+            {
+                "name": "The Neighbourhood",
+                "url": "https://open.spotify.com/artist/77SW9BnxLY8rJ0RciFqkHh"
+            }
+        ],
+        "artistsText": "The Neighbourhood",
+        "album": {
+            "name": "(((((ultraSOUND)))))",
+            "url": "https://open.spotify.com/album/1xsGQbqvVDIq3sCJDUzQZv",
+            "id": "1xsGQbqvVDIq3sCJDUzQZv",
+            "imageUrl": "https://i.scdn.co/image/ab67616d00001e02ba9dd3d335c249d54e04ca1d",
+            "totalTracks": 15,
+            "releaseDateText": "2025-11-14"
+        },
+        "imageUrl": "https://i.scdn.co/image/ab67616d00001e02ba9dd3d335c249d54e04ca1d",
+        "imageId": "1xsGQbqvVDIq3sCJDUzQZv",
+        "duration": 244973,
+        "durationText": "4:04",
+        "explicit": false,
+        "isrc": "",
+        "discNumber": 1,
+        "trackNumber": 1
+    },
+    {
+        "name": "Close To Me",
+        "releaseDateText": "2020-07-17",
+        "id": "2GjMaJ7DacMIkgoe8oMXGg",
+        "url": "https://open.spotify.com/track/2GjMaJ7DacMIkgoe8oMXGg",
+        "playedAt": "2026-06-02T02:14:06.799000Z",
+        "playedAtText": "1969-12-31 16:00",
+        "timePlayed": 4307,
+        "artists": [
+            {
+                "name": "Ellie Goulding",
+                "url": "https://open.spotify.com/artist/0X2BH1fck6amBIoJhDVmmJ"
+            },
+            {
+                "name": "Diplo",
+                "url": "https://open.spotify.com/artist/5fMUXHkw8R8eOP2RNVYEZX"
+            },
+            {
+                "name": "Swae Lee",
+                "url": "https://open.spotify.com/artist/1zNqQNIdeOUZHb8zbZRFMX"
+            }
+        ],
+        "artistsText": "Ellie Goulding, Diplo, Swae Lee",
+        "album": {
+            "name": "Brightest Blue",
+            "url": "https://open.spotify.com/album/7hCfgsycCFH4bBjEfUwh3S",
+            "id": "7hCfgsycCFH4bBjEfUwh3S",
+            "imageUrl": "https://i.scdn.co/image/ab67616d00001e025f76dbd311a0782823550b30",
+            "totalTracks": 18,
+            "releaseDateText": "2020-07-17"
+        },
+        "imageUrl": "https://i.scdn.co/image/ab67616d00001e025f76dbd311a0782823550b30",
+        "imageId": "7hCfgsycCFH4bBjEfUwh3S",
+        "duration": 182626,
+        "durationText": "3:02",
+        "explicit": true,
+        "isrc": "",
+        "discNumber": 1,
+        "trackNumber": 4
     }
 ]

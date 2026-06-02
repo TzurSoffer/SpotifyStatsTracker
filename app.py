@@ -2,45 +2,30 @@ import os
 import json
 import threading
 from pathlib import Path
+import time
 
 from flask import Flask, render_template, redirect, request, url_for, jsonify, send_from_directory
 
-from Database.database import import_spotify_history, read_progress, getTopSongs, getTopArtists
+from Database.database import Database
 
 app = Flask(__name__)
 baseDir = Path(__file__).resolve().parent
 USERNAME = "Tzur"
 COOKIES_FILE = baseDir / "cookies.json"
 
+database = Database(user=USERNAME)
+
 @app.route('/img/<username>/tracks/<filename>')
 def serve_track_image(username, filename):
     imageDir = os.path.join(baseDir, "Database", "img", username, "tracks")
     return send_from_directory(imageDir, filename)
 
-def load_history(start=None, end=None) -> list:
-    history_path = baseDir / "Database" / "history.json"
-    if not history_path.exists():
-        return []
-
-    try:
-        with history_path.open("r", encoding="utf-8") as f:
-            tracks = json.load(f)
-            if start is not None and end is not None:
-                tracks = tracks[start:end]
-            return tracks
-    except json.JSONDecodeError:
-        return []
-    except Exception:
-        return []
-
-
 def get_latest_history(limit=None):
-    tracks = load_history()
+    tracks = database.loadHistory()
     if limit is not None:
         size = len(tracks)
-        tracks = tracks[max(size - limit, 0) : size]
-    return tracks
-
+        return tracks[max(size - limit, 0) : size][::-1]   #< Reverse the list to get the latest items first
+    return tracks[::-1]      #< doing it like this instead of reversing the whole list to save memory and cpu if the history is large
 
 def format_ms(ms: int) -> str:
     if not ms:
@@ -54,10 +39,15 @@ def format_ms(ms: int) -> str:
         return f"{minutes}m {sec}s"
     return f"{sec}s"
 
+def startListenerIfNeeded():
+    if database.listener == None:
+        database.startListener(COOKIES_FILE)
+        print("Started listener thread.")
+        time.sleep(2)  # give listener time to initialize
 
 def run_import_background(history_data):
     try:
-        import_spotify_history(history_data)
+        database.importSpotifyHistory(history_data)
     except Exception:
         pass
 
@@ -65,10 +55,14 @@ def ensure_logged_in(redirect_to=None):
     if COOKIES_FILE.exists():
         try:
             data = json.loads(COOKIES_FILE.read_text(encoding="utf-8"))
-            if isinstance(data, dict) and data:
+            if type(data) != dict or not data:
+                print("Invalid cookies file format.")
+                return False
+            startListenerIfNeeded()
+            if database.isListenerLoggedIn():
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            print(e)
     return False
 
 
@@ -87,43 +81,19 @@ def dashboard():
     )
 
     unique_artists = len({track.get("artist") for track in tracks if track.get("artist")})
-    raw_top_songs = getTopSongs()
-    raw_top_artists = getTopArtists()
-
-    top_songs = []
-    for item in (raw_top_songs or [])[:10]:
-        song = item.get("song", {})
-        top_songs.append({
-            "name": song.get("name") or song.get("title") or "",
-            "artists": song.get("artistsText") or ", ".join(song.get("artists", [])) if song.get("artists") else song.get("artist") or "",
-            "plays": item.get("plays", 0),
-            "time": format_ms(item.get("totalTimeListened", 0)),
-        })
-
-    top_artists = []
-    for item in (raw_top_artists or [])[:10]:
-        top_artists.append({
-            "artist": item.get("artist", ""),
-            "plays": item.get("plays", 0),
-            "time": format_ms(item.get("totalTimeListened", 0)),
-            "uniqueSongs": item.get("uniqueSongCount", 0),
-        })
-
     return render_template(
         "tracks.html",
         tracks=tracks,
         total=len(tracks),
         uniqueArtists=unique_artists,
         totalDuration=total_duration,
-        username=USERNAME,
-        topSongs=top_songs,
-        topArtists=top_artists,
+        username=USERNAME
     )
 
 
 @app.route("/import-history", methods=["POST"])
 def import_history():
-    if read_progress().get("status") == "running":
+    if database.readProgress().get("status") == "running":
         return redirect(url_for("import_page"))
 
     upload = request.files.get("history_file")
@@ -142,7 +112,7 @@ def import_history():
 
 @app.route("/import", methods=["GET"])
 def import_page():
-    return render_template("import.html", importProgress=read_progress())
+    return render_template("import.html", importProgress=database.readProgress())
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -173,7 +143,7 @@ def login():
 
 @app.route("/import-progress", methods=["GET"])
 def import_progress():
-    return jsonify(read_progress())
+    return jsonify(database.readProgress())
 
 
 @app.route("/top-songs", methods=["GET"])
@@ -181,7 +151,7 @@ def top_songs_page():
     if not ensure_logged_in():
         return redirect(url_for("login", next=request.path))
 
-    raw_top_songs = getTopSongs()
+    raw_top_songs = database.getTopSongs()
     tracks = []
     for item in (raw_top_songs or [])[:50]:
         song = item.get("song", {})
@@ -213,7 +183,7 @@ def top_artists_page():
     if not ensure_logged_in():
         return redirect(url_for("login", next=request.path))
 
-    raw_top_artists = getTopArtists()
+    raw_top_artists = database.getTopArtists()
     # build representative track-like cards for each artist
     history = get_latest_history(None)
     tracks = []
@@ -252,6 +222,8 @@ def top_artists_page():
 
     return render_template("top_artists.html", tracks=tracks, username=USERNAME, totalPlays=total_plays, totalUnique=total_unique, totalTime=format_ms(total_ms))
 
+if COOKIES_FILE.exists():
+    startListenerIfNeeded()
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, threaded=False, use_reloader=False)
