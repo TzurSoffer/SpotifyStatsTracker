@@ -2,23 +2,23 @@
 {% block content %}
   <section class="hero">
     <div class="hero-content">
-      <h1>Spotify Stats Dashboard by Tzur Soffer</h1>
-      <p>All your listening history displayed here in a clean overview.</p>
+      <h1>Top Songs</h1>
+      <p>Your most-played tracks and listening totals.</p>
     </div>
   </section>
 
   <section class="track-summary-grid">
     <article class="track-summary-card">
-      <h3>Total Tracks</h3>
-      <p>{{ total }}</p>
+      <h3>Total Songs</h3>
+      <p>{{ tracks|length }}</p>
     </article>
     <article class="track-summary-card">
-      <h3>Artists Tracked</h3>
-      <p>{{ uniqueArtists }}</p>
+      <h3>Total Plays</h3>
+      <p>{{ totalPlays }}</p>
     </article>
     <article class="track-summary-card">
-      <h3>Total Listening Time</h3>
-      <p>{{ totalDuration }}</p>
+      <h3>Time</h3>
+      <p>{{ totalTime }}</p>
     </article>
   </section>
 
@@ -28,7 +28,7 @@
         {% include '_track_card.html' %}
       {% endfor %}
     {% else %}
-      <p class="loading">No history tracks found. Add some listening data in the Database folder first.</p>
+      <p class="loading">No top songs available. Import some listening history first.</p>
     {% endif %}
   </section>
 {% endblock %}

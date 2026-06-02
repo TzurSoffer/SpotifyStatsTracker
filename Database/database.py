@@ -141,7 +141,7 @@ def getTopSongs(startDate: datetime.datetime = None, endDate: datetime.datetime 
 
     for track in tracks:
         key = track["id"]
-        timePlayed = track["msPlayed"]
+        timePlayed = track["timePlayed"]
         if key not in songs:
             songs[key] = {
                 "plays": 0,
@@ -152,9 +152,18 @@ def getTopSongs(startDate: datetime.datetime = None, endDate: datetime.datetime 
         songs[key]["plays"] += 1
         songs[key]["totalTimeListened"] += timePlayed
 
+    normalized = []
+    for v in songs.values():
+        song = v["song"].copy()
+        normalized.append({
+            "plays": v["plays"],
+            "totalTimeListened": v["totalTimeListened"],
+            "song": song,
+        })
+
     sortedSongs = sorted(
-        songs.values(),
-        key=lambda item: (-item["plays"], -item["totalDurationMs"], item["song"].get("name", ""))
+        normalized,
+        key=lambda item: (-item["plays"], -item["totalTimeListened"], item["song"].get("name", ""))
     )
 
     return sortedSongs
@@ -166,23 +175,34 @@ def getTopArtists(startDate: datetime.datetime = None, endDate: datetime.datetim
     artistsStats = {}
 
     for track in tracks:
-        artists = track["artists"]
+        artists = track.get("artists", [])
+        timePlayed = track.get("timePlayed", 0)
         for artist in artists:
-            timePlayed = track["msPlayed"]
-            artistsStats[artist] = {
-                "plays": 0,
-                "totalTimeListened": 0,
-                "artist": track.get("artist") or track.get("artistName") or track.get("master_metadata_album_artist_name") or "",
-                "uniqueSongs": set(),
-            }
+            artist = artist["name"]
+            if artist not in artistsStats:
+                artistsStats[artist] = {
+                    "plays": 0,
+                    "totalTimeListened": 0,
+                    "artist": artist,
+                    "uniqueSongs": set(),
+                }
 
             artistsStats[artist]["plays"] += 1
             artistsStats[artist]["totalTimeListened"] += timePlayed
-            artistsStats[artist]["uniqueSongs"].add(track["id"])
+            artistsStats[artist]["uniqueSongs"].add(track.get("id"))
+
+    normalized = []
+    for v in artistsStats.values():
+        normalized.append({
+            "plays": v["plays"],
+            "totalTimeListened": v["totalTimeListened"],
+            "artist": v["artist"],
+            "uniqueSongCount": len(v["uniqueSongs"]),
+        })
 
     sortedArtists = sorted(
-        artistsStats.values(),
-        key=lambda item: (-item["plays"], -item["totalDurationMs"], item["artist"])
+        normalized,
+        key=lambda item: (-item["plays"], -item["totalTimeListened"], item["artist"])
     )
 
     return sortedArtists

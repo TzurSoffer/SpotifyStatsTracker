@@ -52,7 +52,7 @@ class Client:
             "url": track["external_urls"]["spotify"],
             "playedAt": timestamp,
             "playedAtText": playedAt.strftime("%Y-%m-%d %H:%M"),
-            "msPlayed": msPlayed,
+            "timePlayed": msPlayed,
             "artists": artists,
             "artistsText": artistsText,
             "album": Client._formatAlbum(album),

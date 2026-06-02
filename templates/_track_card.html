@@ -1,0 +1,35 @@
+<article class="track-card">
+  {% set img_id = track.get('imageId') or track.get('imageId', '') %}
+  <img class="track-cover" src="/img/{{ username }}/tracks/{{ img_id }}.jpeg" alt="Album cover for {{ track.get('name','') }}" />
+  <div class="track-details">
+    <div class="track-details-top">
+      <div class="track-header">
+        {% if track.get('url') %}
+        <a href="{{ track.get('url') }}" target="_blank" rel="noreferrer noopener">
+          <h3>{{ track.get('name', '') }}</h3>
+        </a>
+        {% else %}
+          <h3>{{ track.get('name', '') }}</h3>
+        {% endif %}
+        {% if track.get('plays') or track.get('time') or track.get('uniqueSongs') %}
+        <div class="track-meta small">
+            {% if track.get('plays') %}{{ track.get('plays') }} plays{% endif %}
+            {% if track.get('uniqueSongs') %} · {{ track.get('uniqueSongs') }} songs{% endif %}
+            {% if track.get('time') %} · {{ track.get('time') }}{% endif %}
+        </div>
+        {% endif %}
+        <div class="track-meta">{{ track.get('artistsText') or (track.get('artists') and (', '.join(track.get('artists'))) ) or track.get('artist','') }} · {{ (track.get('album') and track.get('album').get('name')) or '' }}</div>
+          {% if track.get('playedAtText') %}
+            <div class="track-meta">Played at {{ track.get('playedAtText') }}</div>
+          {% endif %}
+
+      </div>
+      <div class="track-attributes">
+        {% if track.get('durationText') %}<span class="track-label">Duration: {{ track.get('durationText') }}</span>{% endif %}
+        {% if track.get('trackNumber') %}<span class="track-label">Track {{ track.get('trackNumber') }} · Disc {{ track.get('discNumber') }}</span>{% endif %}
+        <span class="track-label">{{ "Explicit" if track.get('explicit') else "Clean" }}</span>
+        {% if track.get('isrc') %}<span class="track-label">ISRC: {{ track.get('isrc') }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+</article>
