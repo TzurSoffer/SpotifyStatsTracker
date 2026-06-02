@@ -14,9 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create directories for data persistence
-RUN mkdir -p Database/img/Tzur/tracks
-
 # Expose Flask port
 EXPOSE 5000
 

@@ -22,10 +22,7 @@ cookies2.json
 cookies*.json
 Streaming*.json
 StreamingHistory*.json
-Database/history.json
-Database/historyCopy.json
-Database/progress.json
-Database/img
+Database/Users
 Database/__pycache__
 secrets/
 tmp
