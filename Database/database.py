@@ -28,6 +28,7 @@ class Database:
         self.progressPath = self.baseDir / "progress.json"
 
         self.downloadedImages = self._loadDownloadedImagesCache()
+        self.resetProgress()
 
     def _loadDownloadedImagesCache(self) -> list:
         if self.downloadedImagesPath.exists():
@@ -75,6 +76,9 @@ class Database:
             return json.loads(self.progressPath.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             return defaultProgress
+    
+    def resetProgress(self):
+        self.writeProgress("idle", 0, 0, "", False)
 
     def loadHistory(self) -> list:
         return self._ensureJsonFile(self.historyPath, [])

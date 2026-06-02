@@ -27,44 +27,52 @@ class Importer:
     def importAcountHistory(self, history):
         known = {}
         for item in history:
-            endTimestamp = datetime.datetime.strptime(item["endTime"], "%Y-%m-%d %H:%M")
-            endTimestamp = int(endTimestamp.timestamp())
-            msPlayed = item["msPlayed"]
+            try:
+                endTimestamp = datetime.datetime.strptime(item["endTime"], "%Y-%m-%d %H:%M")
+                endTimestamp = int(endTimestamp.timestamp())
+                msPlayed = item["msPlayed"]
 
-            startTimestamp = endTimestamp-msPlayed//1000
-            name=item["trackName"]
-            artist=item["artistName"]
-            id = name+artist
-            if id in known:
-                meta = known[id]
-            else:
-                track = self._searchForSong(name=name, artist=artist)
-                meta = Client.formatTrack(startTimestamp, track, msPlayed=msPlayed)
-                known[id] = meta
+                startTimestamp = endTimestamp-msPlayed//1000
+                name=item["trackName"]
+                artist=item["artistName"]
+                id = name+artist
+                if id in known:
+                    meta = known[id]
+                else:
+                    track = self._searchForSong(name=name, artist=artist)
+                    meta = Client.formatTrack(startTimestamp, track, msPlayed=msPlayed)
+                    known[id] = meta
 
-            yield meta
-    
+                yield meta
+            except Exception as e:
+                print(f"Error processing item: {e}")
+                continue
+
     def importExtendedHistory(self, history):
         known = {}
         for item in history:
-            if not item.get("master_metadata_track_name"):
+            try:
+                if not item.get("master_metadata_track_name"):
+                    continue
+
+                ts = item["ts"]
+                dt = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                endTimestamp = int(dt.timestamp())
+                msPlayed = item.get("ms_played", 0)
+                startTimestamp = endTimestamp - (msPlayed // 1000)
+
+                trackName = item["master_metadata_track_name"]
+                artistName = item["master_metadata_album_artist_name"]
+
+                id = trackName+artistName
+                if id in known:
+                    meta = known[id]
+                else:
+                    track = self._searchForSong(name=trackName, artist=artistName)
+                    meta = Client.formatTrack(startTimestamp, track, msPlayed=msPlayed)
+                    known[id] = meta
+
+                yield meta
+            except Exception as e:
+                print(f"Error processing item: {e}")
                 continue
-
-            ts = item["ts"]
-            dt = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
-            endTimestamp = int(dt.timestamp())
-            msPlayed = item.get("ms_played", 0)
-            startTimestamp = endTimestamp - (msPlayed // 1000)
-
-            trackName = item["master_metadata_track_name"]
-            artistName = item["master_metadata_album_artist_name"]
-
-            id = trackName+artistName
-            if id in known:
-                meta = known[id]
-            else:
-                track = self._searchForSong(name=trackName, artist=artistName)
-                meta = Client.formatTrack(startTimestamp, track, msPlayed=msPlayed)
-                known[id] = meta
-
-            yield meta

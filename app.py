@@ -101,7 +101,6 @@ class SpotifyDashboardApp:
 
         @self.app.route("/import-history", methods=["POST"])
         def importHistory():
-            # FIX: updated 'import_page' to 'importPage'
             if self.database.readProgress().get("status") == "running":
                 return redirect(url_for("importPage"))
 
