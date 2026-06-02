@@ -134,9 +134,9 @@ def import_spotify_history(exportedHistory):
         write_progress("failed", index if "index" in locals() else 0, total, f"Import failed: {e}", error=True)
         raise
 
-def getTopSongs(limit: int = None) -> list:
+def getTopSongs(startDate: datetime.datetime = None, endDate: datetime.datetime = None) -> list:
     """Return songs sorted by play count with full song metadata and listen totals."""
-    tracks = load_history()
+    tracks = filterTracksByInterval(load_history(), startDate, endDate)
     songs = {}
 
     for track in tracks:
@@ -160,9 +160,9 @@ def getTopSongs(limit: int = None) -> list:
     return sortedSongs
 
 
-def getTopArtists(tracks: list, limit: int = None) -> list:
+def getTopArtists(startDate: datetime.datetime = None, endDate: datetime.datetime = None) -> list:
     """Return artists sorted by total plays with aggregated data and listen totals."""
-    tracks = load_history()
+    tracks = filterTracksByInterval(load_history(), startDate, endDate)
     artistsStats = {}
 
     for track in tracks:
