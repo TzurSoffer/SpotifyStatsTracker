@@ -36,7 +36,7 @@ class Client:
         }
 
     @staticmethod
-    def formatTrack(timestamp, track):
+    def formatTrack(timestamp, track, msPlayed):
         try:
             playedAt = datetime.datetime.fromtimestamp(float(timestamp))
         except Exception:
@@ -52,6 +52,7 @@ class Client:
             "url": track["external_urls"]["spotify"],
             "playedAt": timestamp,
             "playedAtText": playedAt.strftime("%Y-%m-%d %H:%M"),
+            "msPlayed": msPlayed,
             "artists": artists,
             "artistsText": artistsText,
             "album": Client._formatAlbum(album),

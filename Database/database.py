@@ -1,6 +1,8 @@
+import datetime
 import json
 from pathlib import Path
 from io import BytesIO
+from collections import Counter
 
 import requests
 from PIL import Image
@@ -132,6 +134,80 @@ def import_spotify_history(exportedHistory):
         write_progress("failed", index if "index" in locals() else 0, total, f"Import failed: {e}", error=True)
         raise
 
+def getTopSongs(limit: int = None) -> list:
+    """Return songs sorted by play count with full song metadata and listen totals."""
+    tracks = load_history()
+    songs = {}
+
+    for track in tracks:
+        key = track["id"]
+        timePlayed = track["msPlayed"]
+        if key not in songs:
+            songs[key] = {
+                "plays": 0,
+                "totalTimeListened": 0,
+                "song": {},
+            }
+            songs[key]["song"].update(track)
+        songs[key]["plays"] += 1
+        songs[key]["totalTimeListened"] += timePlayed
+
+    sortedSongs = sorted(
+        songs.values(),
+        key=lambda item: (-item["plays"], -item["totalDurationMs"], item["song"].get("name", ""))
+    )
+
+    return sortedSongs
+
+
+def getTopArtists(tracks: list, limit: int = None) -> list:
+    """Return artists sorted by total plays with aggregated data and listen totals."""
+    tracks = load_history()
+    artistsStats = {}
+
+    for track in tracks:
+        artists = track["artists"]
+        for artist in artists:
+            timePlayed = track["msPlayed"]
+            artistsStats[artist] = {
+                "plays": 0,
+                "totalTimeListened": 0,
+                "artist": track.get("artist") or track.get("artistName") or track.get("master_metadata_album_artist_name") or "",
+                "uniqueSongs": set(),
+            }
+
+            artistsStats[artist]["plays"] += 1
+            artistsStats[artist]["totalTimeListened"] += timePlayed
+            artistsStats[artist]["uniqueSongs"].add(track["id"])
+
+    sortedArtists = sorted(
+        artistsStats.values(),
+        key=lambda item: (-item["plays"], -item["totalDurationMs"], item["artist"])
+    )
+
+    return sortedArtists
+
+
+def filterTracksByInterval(tracks: list, startDate: datetime.datetime = None, endDate: datetime.datetime = None) -> list:
+    """
+    Filters a chronologically sorted list of tracks by a given time interval.
+    """
+    if startDate == None and endDate == None:
+        return tracks
+
+    filtered = []
+    for track in tracks:
+        playedAt = track.get("playedAt")
+        date = datetime.datetime.fromtimestamp(int(playedAt))
+
+        if startDate and date < startDate:
+            continue
+        if endDate and date > endDate:
+            break
+            
+        filtered.append(track)
+    return filtered
+
 
 if __name__ == "__main__":
     import SpotipyFree
@@ -145,7 +221,7 @@ if __name__ == "__main__":
     # track = sp.track("67Hna13dNDkZvBpTXRIaOJ")
     # with open("track.json", "r") as f:
     #     track = json.load(f)
-    # addToHistoryFromRaw(str(datetime.datetime.now().timestamp()), track)
+    # addToHistoryFromData(int(datetime.datetime.now().timestamp()), track)
 
     with open("importMe.json", "r", encoding="utf-8") as f:
         history_data = json.load(f)
