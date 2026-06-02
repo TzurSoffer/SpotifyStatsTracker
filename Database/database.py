@@ -22,10 +22,10 @@ class Database:
         self.listener = None
         self.baseDir = baseDir or Path(__file__).resolve().parent
 
-        self.imgDir = self.baseDir / "img" / self.user / "tracks"
+        self.imgDir = self.baseDir / "Users" / self.user / "img" / "tracks"
         self.downloadedImagesPath = self.imgDir / "metadata.json"
-        self.historyPath = self.baseDir / "history.json"
-        self.progressPath = self.baseDir / "progress.json"
+        self.historyPath = self.baseDir / "Users" / self.user / "history.json"
+        self.progressPath = self.baseDir / "Users" / self.user / "progress.json"
 
         self.downloadedImages = self._loadDownloadedImagesCache()
         self.resetProgress()

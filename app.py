@@ -69,7 +69,7 @@ class SpotifyDashboardApp:
     def registerRoutes(self):
         @self.app.route('/img/<username>/tracks/<filename>')
         def serveTrackImage(username, filename):
-            imageDir = os.path.join(self.baseDir, "Database", "img", username, "tracks")
+            imageDir = os.path.join(self.baseDir, "Database", "Users", username, "img", "tracks")
             return send_from_directory(imageDir, filename)
 
         @self.app.route("/", methods=["GET"])
