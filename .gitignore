@@ -13,3 +13,5 @@ secrets.json
 cookies*.json
 Database/img/*/tracks/*
 tmp/
+entries.json
+tracks.json
