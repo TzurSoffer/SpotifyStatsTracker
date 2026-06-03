@@ -44,8 +44,8 @@ class Importer:
                 if id in known:
                     meta = known[id]
                 else:
-                    track = self._searchForSong(name=name, artist=artist)
-                meta = Client.formatTrack(startTimestamp, track, msPlayed=timePlayed)  #< Update with correct played at info
+                    meta = self._searchForSong(name=name, artist=artist)
+                meta = Client.formatTrack(startTimestamp, meta, msPlayed=timePlayed)  #< Update with correct played at info
                 if id not in known:
                     known[id] = meta
 
