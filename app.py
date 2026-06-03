@@ -18,6 +18,7 @@ class SpotifyDashboardApp:
         self.username = "Tzur"
         self.cookiesFile = self.baseDir / "secrets" / "cookies.json"
         self.database = Database(user=self.username)
+        self.database.resetProgress()
 
         # Register routes
         self.registerRoutes()

@@ -30,7 +30,6 @@ class Database:
         self.progressPath = self.baseDir / "Users" / self.user / "progress.json"
 
         self.downloadedImages = self._loadDownloadedImagesCache()
-        self.resetProgress()
 
     def _addToDatabaseFromListener(self, data) -> None:
         if not data:
@@ -239,7 +238,7 @@ class Database:
 
         index = 0
         try:
-            for index, meta in enumerate(importer.importHistory(exportedHistory), start=1):
+            for index, meta in enumerate(importer.importHistory(exportedHistory, self._loadTracks().values()), start=1):  #< We only want the tracks, the importer doesn't care about the keys
                 e, t = self._splitEntryAndTrack(meta)
                 entries.append(e)
                 tracks.update(t)

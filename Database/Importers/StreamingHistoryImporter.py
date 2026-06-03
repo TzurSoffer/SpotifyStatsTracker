@@ -10,39 +10,43 @@ except ModuleNotFoundError:
 
 
 class Importer:
-    def __init__(self):
+    def __init__(self, user="Tzur"):
         self.sp = SpotipyFree.Spotify()
 
     def _searchForSong(self, name, artist):
         query = f"track:{name} artist:{artist}"
         return self.sp.search(query, type="track", limit=1)["tracks"]["items"][0]
 
-    def importHistory(self, history):
+    def importHistory(self, history, known=[]):
         if len(history) == 0:
             return []
         if "msPlayed" in history[0]:   #< Acount export
-            return self.importAcountHistory(history)
+            return self.importAcountHistory(history, known=known)
         elif "ts" in history[0]:       #< Extended history export
-            return self.importExtendedHistory(history)
+            return self.importExtendedHistory(history, known=known)
         return []
 
-    def importAcountHistory(self, history):
-        known = {}
+    def buildKnownIndex(self, knownTrack):
+        index = {}
+        for item in knownTrack:
+            if len(item["artists"]) == 0:
+                continue
+            index[item["name"]+item["artists"][0]["name"]] = item
+        return index
+        
+    def _import(self, dataFunction, history, known=[]):
+        known = self.buildKnownIndex(known)
         for item in history:
             try:
-                endTimestamp = datetime.datetime.strptime(item["endTime"], "%Y-%m-%d %H:%M")
-                endTimestamp = int(endTimestamp.timestamp())
-                msPlayed = item["msPlayed"]
+                name, artist, startTimestamp, timePlayed = dataFunction(item)
 
-                startTimestamp = endTimestamp-msPlayed//1000
-                name=item["trackName"]
-                artist=item["artistName"]
                 id = name+artist
                 if id in known:
                     meta = known[id]
                 else:
                     track = self._searchForSong(name=name, artist=artist)
-                    meta = Client.formatTrack(startTimestamp, track, msPlayed=msPlayed)
+                meta = Client.formatTrack(startTimestamp, track, msPlayed=timePlayed)  #< Update with correct played at info
+                if id not in known:
                     known[id] = meta
 
                 yield meta
@@ -50,31 +54,29 @@ class Importer:
                 print(f"Error processing item: {e}")
                 continue
 
-    def importExtendedHistory(self, history):
-        known = {}
-        for item in history:
-            try:
-                if not item.get("master_metadata_track_name"):
-                    continue
+    def importAcountHistory(self, history, known=[]):
+        def dataFunction(item):
+            endTimestamp = datetime.datetime.strptime(item["endTime"], "%Y-%m-%d %H:%M")
+            endTimestamp = int(endTimestamp.timestamp())
+            timePlayed = item["msPlayed"]
 
-                ts = item["ts"]
-                dt = convertToDatetime(ts)
-                endTimestamp = int(dt.timestamp())
-                msPlayed = item.get("ms_played", 0)
-                startTimestamp = endTimestamp - (msPlayed // 1000)
+            startTimestamp = endTimestamp-timePlayed//1000
+            name=item["trackName"]
+            artist=item["artistName"]
+            return name, artist, startTimestamp, timePlayed
+        
+        yield from self._import(dataFunction, history, known)
 
-                trackName = item["master_metadata_track_name"]
-                artistName = item["master_metadata_album_artist_name"]
+    def importExtendedHistory(self, history, known=[]):
+        def dataFunction(item):
+            ts = item["ts"]
+            dt = convertToDatetime(ts)
+            endTimestamp = int(dt.timestamp())
+            timePlayed = item.get("ms_played", 0)
+            startTimestamp = endTimestamp - (timePlayed // 1000)
 
-                id = trackName+artistName
-                if id in known:
-                    meta = known[id]
-                else:
-                    track = self._searchForSong(name=trackName, artist=artistName)
-                    meta = Client.formatTrack(startTimestamp, track, msPlayed=msPlayed)
-                    known[id] = meta
-
-                yield meta
-            except Exception as e:
-                print(f"Error processing item: {e}")
-                continue
+            name = item["master_metadata_track_name"]
+            artist = item["master_metadata_album_artist_name"]
+            return name, artist, startTimestamp, timePlayed
+        
+        yield from self._import(dataFunction, history, known)
