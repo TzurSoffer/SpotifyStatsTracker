@@ -10,10 +10,12 @@ try:
     from Database.Formatters.spotifyClient import Client
     from Database.Importers.StreamingHistoryImporter import Importer
     from Database.Listeners.spotifyListener import Listener
+    from Database.utils import parseError, convertToDatetime
 except ModuleNotFoundError:
     from Formatters.spotifyClient import Client
     from Importers.StreamingHistoryImporter import Importer
     from Listeners.spotifyListener import Listener
+    from utils import parseError, convertToDatetime
 
 class Database:
     def __init__(self, user: str = "Tzur"):
@@ -48,7 +50,7 @@ class Database:
                 pass
         return []
 
-    def _ensureJsonFile(self, path: Path, default) -> list:
+    def _loadJsonFile(self, path: Path, default) -> list:
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
             path.write_text(json.dumps(default, indent=4), encoding="utf-8")
@@ -65,7 +67,7 @@ class Database:
 
     def _loadEntries(self) -> list:
         """ Load ONLY id and info about time played from the JSON file. """
-        return self._ensureJsonFile(self.entriesPath, [])
+        return self._loadJsonFile(self.entriesPath, [])
 
     def _saveEntries(self, entries: list):
         """ Save ONLY id and info about time played to the JSON file. """
@@ -77,26 +79,23 @@ class Database:
 
     def _loadTracks(self) -> list:
         """ Load full track metadata from the JSON file. """
-        return self._ensureJsonFile(self.tracksPath, {})
+        return self._loadJsonFile(self.tracksPath, {})
     
+    def _splitEntryAndTrack(self, metadata: dict) -> tuple[list, dict]:
+        entry = {
+            "id": metadata["id"],
+            "playedAt": metadata["playedAt"],
+            "playedAtText": metadata["playedAtText"],
+            "timePlayed": metadata["timePlayed"]
+        }
+        metadata.pop("playedAt")
+        metadata.pop("playedAtText")
+        metadata.pop("timePlayed")
+        track = {metadata["id"]: metadata}
+        return entry, track
+
     def _splitEntriesAndTracks(self, metadata: list) -> tuple[list, dict]:
-        entries = []
-        tracks = {}
-        if type(metadata) == dict:
-            metadata = [metadata]
-        for item in metadata:
-            entry = {
-                "id": item["id"],
-                "playedAt": item["playedAt"],
-                "playedAtText": item["playedAtText"],
-                "timePlayed": item["timePlayed"]
-            }
-            entries.append(entry)
-            item.pop("playedAt")
-            item.pop("playedAtText")
-            item.pop("timePlayed")
-            tracks[item["id"]] = item
-        return entries, tracks
+        return [self._splitEntryAndTrack(m) for m in metadata]
 
     def _paginateEntry(self, entry: dict, tracks: dict = None) -> dict:
         if tracks is None:
@@ -118,7 +117,7 @@ class Database:
         if not newEntries:
             return
         entries = self._loadEntries()
-        entries.extend(newEntries)
+        entries.append(newEntries)
         self._saveEntries(entries)
     
     def updateTracks(self, tracks: dict):
@@ -134,27 +133,27 @@ class Database:
     
     def getEntriesFromNew(self, count: int) -> list:
         """ Return the latest `count` entries from history, sorted from newest to oldest. If count is None, return all entries. """
-        tracks = self._loadEntries()
+        entries = self._loadEntries()
         if count is not None:
-            return self._paginateEntries(tracks[:count][::-1])
-        return self._paginateEntries(tracks[::-1])
+            return self._paginateEntries(entries[:count][::-1])
+        return self._paginateEntries(entries[::-1])
 
     def getEntriesFromOld(self, count: int) -> list:
         """ Return the oldest `count` entries from history, sorted from oldest to newest. If count is None, return all entries. """
-        tracks = self._loadEntries()
+        entries = self._loadEntries()
         if count is not None:
-            return self._paginateEntries(tracks[-count:])
-        return self._paginateEntries(tracks)
+            return self._paginateEntries(entries[-count:])
+        return self._paginateEntries(entries)
 
     def getEntriesFromIndex(self, index: int, count: int = None, oldest_first: bool = False) -> list:
-        tracks = self._loadEntries()
-        index = min(index, len(tracks) - 1)
+        entries = self._loadEntries()
+        index = min(index, len(entries) - 1)
         if count is not None:
             if oldest_first:
-                return self._paginateEntries(tracks[index:index + count])
+                return self._paginateEntries(entries[index:index + count])
             else:
-                return self._paginateEntries(tracks[index - count:index]) if index >= count else self._paginateEntries(tracks[:index])
-        return [self._paginateEntries([tracks[index]])]
+                return self._paginateEntries(entries[index - count:index]) if index >= count else self._paginateEntries(entries[:index])
+        return [self._paginateEntries([entries[index]])]
 
     def writeProgress(self, status: str, current: int = 0, total: int = 0, message: str = "", error: bool = False):
         payload = {
@@ -206,18 +205,30 @@ class Database:
                 json.dumps(self.downloadedImages, indent=4), encoding="utf-8"
             )
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching image from {url}: {e}")
+            print(f"Error fetching image from {url}: {parseError(e)}")
         except Exception as e:
-            print(f"Error saving image: {e}")
+            print(f"Error saving image: {parseError(e)}")
 
     def appendMetadata(self, meta: dict) -> None:
         self.saveImg(meta["imageUrl"], meta["imageId"])
-        entry, track = self._splitEntriesAndTracks(meta)
+        entry, track = self._splitEntryAndTrack(meta)
         self.appendEntries(entry)
         self.updateTracks(track)
 
     def appendTrackData(self, timestamp, track, timePlayed):
         self.appendMetadata(Client.formatTrack(timestamp, track, timePlayed))
+
+    def resortDatabase(self):
+        """ In case entries got out of order, this will sort them by playedAt timestamp. """
+        entries = self._loadEntries()
+        for entry in entries:
+            print(convertToDatetime(entry["playedAt"]).timestamp())
+        entries.sort(
+            key=lambda x: convertToDatetime(x["playedAt"]).timestamp()
+        )
+        print(entries)
+
+        self._saveEntries(entries)
 
     def importSpotifyHistory(self, exportedHistory):
         entries = self._loadEntries()
@@ -229,15 +240,16 @@ class Database:
         index = 0
         try:
             for index, meta in enumerate(importer.importHistory(exportedHistory), start=1):
-                e, t = self._splitEntriesAndTracks(meta)
+                e, t = self._splitEntryAndTrack(meta)
                 entries.append(e)
                 tracks.update(t)
                 self.writeProgress("running", index, total, f"Imported {index} of {total}")
             self._saveEntries(entries)
             self._saveTracks(tracks)
+            self.resortDatabase()     #< Entries are not added in order, so sort them by timestamp
             self.writeProgress("complete", total, total, "Import complete")
         except Exception as e:
-            self.writeProgress("failed", index, total, f"Import failed: {e}", error=True)
+            self.writeProgress("failed", index, total, f"Import failed: {parseError(e)}", error=True)
             raise
 
     def filterEntriesByInterval(self, entries: list, startDate: datetime.datetime = None, endDate: datetime.datetime = None) -> list:

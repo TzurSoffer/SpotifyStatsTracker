@@ -1,5 +1,4 @@
-import datetime
-
+from Database.utils import convertToDatetime
 
 class Client:
     @staticmethod
@@ -41,12 +40,7 @@ class Client:
 
     @staticmethod
     def formatTrack(timestamp, track, msPlayed):
-        try:
-            playedAt = datetime.datetime.fromtimestamp(float(timestamp))
-        except ValueError:
-            playedAt = datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-        except:
-            playedAt = datetime.datetime.fromtimestamp(0)
+        playedAt = convertToDatetime(timestamp)
 
         track = track or {}
         album = track.get("album") or {}

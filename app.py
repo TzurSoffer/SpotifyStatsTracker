@@ -128,6 +128,7 @@ class SpotifyDashboardApp:
 
             thread = threading.Thread(target=self.runImportBackground, args=(historyData,), daemon=True)
             thread.start()
+            time.sleep(1)  # Give thread time to start and update progress
             return redirect(url_for("importPage"))
 
         @self.app.route("/import", methods=["GET"])

@@ -3,8 +3,10 @@ import datetime
 
 try:
     from Database.Formatters.spotifyClient import Client
+    from Database.utils import convertToDatetime
 except ModuleNotFoundError:
     from Formatters.spotifyClient import Client
+    from utils import convertToDatetime
 
 
 class Importer:
@@ -56,7 +58,7 @@ class Importer:
                     continue
 
                 ts = item["ts"]
-                dt = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                dt = convertToDatetime(ts)
                 endTimestamp = int(dt.timestamp())
                 msPlayed = item.get("ms_played", 0)
                 startTimestamp = endTimestamp - (msPlayed // 1000)
