@@ -1,6 +1,9 @@
 from pathlib import Path
 import importlib.util
 
+def getMiddleVersion(version):
+    return int(version.split(".")[1])
+
 def migrateIfNeeded():
     baseDir = Path(__file__).resolve().parent
     appVersionFile = baseDir / ".." / "VERSION"
@@ -10,7 +13,8 @@ def migrateIfNeeded():
         databaseVersionFile.write_text(appVersion)
         return   #< means this is first run, no migration needed
     databaseVersion = databaseVersionFile.read_text().strip()
-    while databaseVersion != appVersion:
+
+    while getMiddleVersion(databaseVersion) != getMiddleVersion(appVersion):
         if databaseVersion == "1.0.0":
             print("Migrating from version 1.0.0")
 
