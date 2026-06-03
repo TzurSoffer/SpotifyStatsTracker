@@ -15,7 +15,6 @@ except ModuleNotFoundError:
     from Importers.StreamingHistoryImporter import Importer
     from Listeners.spotifyListener import Listener
 
-
 class Database:
     def __init__(self, user: str = "Tzur", baseDir: Path = None):
         self.user = user

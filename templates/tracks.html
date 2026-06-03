@@ -10,10 +10,21 @@
   <section class="track-list">
     {% if tracks %}
       {% for track in tracks %}
+        {% set item_number = (startIndex | default(0)) + loop.index %}
         {% include '_track_card.html' %}
       {% endfor %}
     {% else %}
       <p class="loading">No history tracks found. Go listen to some music or import your history from the import section.</p>
+    {% endif %}
+  </section>
+
+  <section class="pagination">
+    {% if prevUrl %}
+      <a class="button" href="{{ prevUrl }}">Previous</a>
+    {% endif %}
+    <span>Page {{ page }} of {{ totalPages }}</span>
+    {% if nextUrl %}
+      <a class="button" href="{{ nextUrl }}">Next</a>
     {% endif %}
   </section>
 {% endblock %}

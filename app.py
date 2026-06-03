@@ -43,6 +43,13 @@ class SpotifyDashboardApp:
             return tracks[max(size - limit, 0) : size][::-1]
         return tracks[::-1]
 
+    def paginate(self, items, page, pageSize=50):
+        page = max(1, page)
+        total = len(items)
+        start = (page - 1) * pageSize
+        end = start + pageSize
+        return items[start:end], total, page, max(1, (total + pageSize - 1) // pageSize), start
+
     def startListenerIfNeeded(self):
         if self.database.listener is None:
             self.database.startListener(str(self.cookiesFile))
@@ -76,8 +83,11 @@ class SpotifyDashboardApp:
         def dashboard():
             if not self.ensureLoggedIn():
                 return redirect(url_for("login", next=request.path))
-            tracks = self.getLatestHistory(50)
-            totalDurationMs = sum(track.get("duration", 0) for track in tracks)
+            page = int(request.args.get("page", 1) or 1)
+            allTracks = self.getLatestHistory(None)
+            tracks, total, page, totalPages, startIndex = self.paginate(allTracks, page)
+
+            totalDurationMs = sum(track.get("duration", 0) for track in allTracks)
             durationHours = totalDurationMs // 3_600_000
             durationMinutes = (totalDurationMs % 3_600_000) // 60_000
             totalDuration = (
@@ -86,14 +96,22 @@ class SpotifyDashboardApp:
                 else f"{durationMinutes}m"
             )
 
-            uniqueArtists = len({track.get("artist") for track in tracks if track.get("artist")})
+            uniqueArtists = len({track.get("artist") for track in allTracks if track.get("artist")})
+            prevUrl = url_for("dashboard", page=page - 1) if page > 1 else None
+            nextUrl = url_for("dashboard", page=page + 1) if page < totalPages else None
+
             return render_template(
                 "tracks.html",
                 tracks=tracks,
-                total=len(tracks),
+                total=len(allTracks),
                 uniqueArtists=uniqueArtists,
                 totalDuration=totalDuration,
-                username=self.username
+                username=self.username,
+                page=page,
+                totalPages=totalPages,
+                prevUrl=prevUrl,
+                nextUrl=nextUrl,
+                startIndex=startIndex,
             )
 
         @self.app.route("/import-history", methods=["POST"])
@@ -155,9 +173,12 @@ class SpotifyDashboardApp:
             if not self.ensureLoggedIn():
                 return redirect(url_for("login", next=request.path))
 
-            rawTopSongs = self.database.getTopSongs()
+            page = int(request.args.get("page", 1) or 1)
+            rawTopSongs = self.database.getTopSongs() or []
+            pageItems, total, page, totalPages, startIndex = self.paginate(rawTopSongs, page)
+
             tracks = []
-            for item in (rawTopSongs or [])[:50]:
+            for item in pageItems:
                 song = item.get("song", {})
                 card = {}
                 card["imageId"] = song.get("imageId") or song.get("album", {}).get("imageId") or ''
@@ -176,20 +197,35 @@ class SpotifyDashboardApp:
                 card["time"] = self.formatMs(item.get("totalTimeListened", 0))
                 tracks.append(card)
 
-            totalPlays = sum(i.get("plays", 0) for i in (rawTopSongs or []))
-            totalMs = sum(i.get("totalTimeListened", 0) for i in (rawTopSongs or []))
+            totalPlays = sum(i.get("plays", 0) for i in rawTopSongs)
+            totalMs = sum(i.get("totalTimeListened", 0) for i in rawTopSongs)
+            prevUrl = url_for("topSongsPage", page=page - 1) if page > 1 else None
+            nextUrl = url_for("topSongsPage", page=page + 1) if page < totalPages else None
 
-            return render_template("top_songs.html", tracks=tracks, username=self.username, totalPlays=totalPlays, totalTime=self.formatMs(totalMs))
+            return render_template(
+                "top_songs.html",
+                tracks=tracks,
+                username=self.username,
+                totalPlays=totalPlays,
+                totalTime=self.formatMs(totalMs),
+                page=page,
+                totalPages=totalPages,
+                prevUrl=prevUrl,
+                nextUrl=nextUrl,
+                startIndex=startIndex,
+            )
 
         @self.app.route("/top-artists", methods=["GET"])
         def topArtistsPage():
             if not self.ensureLoggedIn():
                 return redirect(url_for("login", next=request.path))
 
-            rawTopArtists = self.database.getTopArtists()
+            page = int(request.args.get("page", 1) or 1)
+            rawTopArtists = self.database.getTopArtists() or []
+            pageItems, total, page, totalPages, startIndex = self.paginate(rawTopArtists, page)
             history = self.getLatestHistory(None)
             tracks = []
-            for item in (rawTopArtists or [])[:50]:
+            for item in pageItems:
                 artistName = item.get("artist", "")
                 rep = None
                 for t in history:
@@ -216,11 +252,25 @@ class SpotifyDashboardApp:
                 card["uniqueSongs"] = item.get("uniqueSongCount", 0)
                 tracks.append(card)
 
-            totalPlays = sum(i.get("plays", 0) for i in (rawTopArtists or []))
-            totalUnique = sum(i.get("uniqueSongCount", 0) for i in (rawTopArtists or []))
-            totalMs = sum(i.get("totalTimeListened", 0) for i in (rawTopArtists or []))
+            totalPlays = sum(i.get("plays", 0) for i in rawTopArtists)
+            totalUnique = sum(i.get("uniqueSongCount", 0) for i in rawTopArtists)
+            totalMs = sum(i.get("totalTimeListened", 0) for i in rawTopArtists)
+            prevUrl = url_for("topArtistsPage", page=page - 1) if page > 1 else None
+            nextUrl = url_for("topArtistsPage", page=page + 1) if page < totalPages else None
 
-            return render_template("top_artists.html", tracks=tracks, username=self.username, totalPlays=totalPlays, totalUnique=totalUnique, totalTime=self.formatMs(totalMs))
+            return render_template(
+                "top_artists.html",
+                tracks=tracks,
+                username=self.username,
+                totalPlays=totalPlays,
+                totalUnique=totalUnique,
+                totalTime=self.formatMs(totalMs),
+                page=page,
+                totalPages=totalPages,
+                prevUrl=prevUrl,
+                nextUrl=nextUrl,
+                startIndex=startIndex,
+            )
 
     def run(self):
         self.app.run(host="0.0.0.0", debug=True, port=5000, threaded=False, use_reloader=False)
