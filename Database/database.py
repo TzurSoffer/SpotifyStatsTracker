@@ -231,7 +231,7 @@ class Database:
             for index, meta in enumerate(importer.importHistory(exportedHistory), start=1):
                 e, t = self._splitEntriesAndTracks(meta)
                 entries.append(e)
-                tracks.extend(t)
+                tracks.update(t)
                 self.writeProgress("running", index, total, f"Imported {index} of {total}")
             self._saveEntries(entries)
             self._saveTracks(tracks)
