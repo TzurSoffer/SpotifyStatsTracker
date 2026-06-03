@@ -7,10 +7,12 @@ import time
 from flask import Flask, render_template, redirect, request, url_for, jsonify, send_from_directory
 
 from Database.database import Database
+from Database.Migrators.migrate import migrateIfNeeded
 from SpotipyFree import saveSession, parseCookieString
 
 class SpotifyDashboardApp:
     def __init__(self):
+        migrateIfNeeded()
         self.app = Flask(__name__)
         self.baseDir = Path(__file__).resolve().parent
         self.username = "Tzur"
@@ -37,11 +39,7 @@ class SpotifyDashboardApp:
         return f"{sec}s"
 
     def getLatestHistory(self, limit=None):
-        tracks = self.database.loadHistory()
-        if limit is not None:
-            size = len(tracks)
-            return tracks[max(size - limit, 0) : size][::-1]
-        return tracks[::-1]
+        return self.database.getEntriesFromNew(limit)
 
     def paginate(self, items, page, pageSize=50):
         page = max(1, page)

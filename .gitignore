@@ -12,3 +12,4 @@ Streaming*.json
 secrets.json
 cookies*.json
 Database/img/*/tracks/*
+tmp/

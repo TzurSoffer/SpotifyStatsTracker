@@ -43,7 +43,9 @@ class Client:
     def formatTrack(timestamp, track, msPlayed):
         try:
             playedAt = datetime.datetime.fromtimestamp(float(timestamp))
-        except Exception:
+        except ValueError:
+            playedAt = datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        except:
             playedAt = datetime.datetime.fromtimestamp(0)
 
         track = track or {}

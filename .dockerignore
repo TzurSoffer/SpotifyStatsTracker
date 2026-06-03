@@ -25,5 +25,5 @@ StreamingHistory*.json
 Database/Users
 Database/__pycache__
 secrets/
-tmp
+tmp/
 .tmp
