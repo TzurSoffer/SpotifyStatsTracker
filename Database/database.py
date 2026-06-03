@@ -277,6 +277,7 @@ class Database:
 
     def getSongsStats(self, startDate: datetime.datetime = None, endDate: datetime.datetime = None) -> list:
         """Return songs sorted by play count with full song metadata and listen totals."""
+        tracks = self._loadTracks()
         entries = self.filterEntriesByInterval(self._loadEntries(), startDate, endDate)
         songs = {}
 
@@ -289,17 +290,16 @@ class Database:
                     "totalTimeListened": 0,
                     "song": None,
                 }
-                songs[key]["song"] = self._paginateEntry(entry)  #< Get full song metadata for this entry
+                songs[key]["song"] = self._paginateEntry(entry, tracks)  #< Get full song metadata for this entry
             songs[key]["plays"] += 1
             songs[key]["totalTimeListened"] += timePlayed
 
         normalized = []
         for v in songs.values():
-            song = v["song"].copy()
             normalized.append({
                 "plays": v["plays"],
                 "totalTimeListened": v["totalTimeListened"],
-                "song": song,
+                "song": v["song"],
             })
         return normalized
 
