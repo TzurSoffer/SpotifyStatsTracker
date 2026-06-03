@@ -7,10 +7,12 @@ import time
 from flask import Flask, render_template, redirect, request, url_for, jsonify, send_from_directory
 
 from Database.database import Database
+from Database.Migrators.migrate import migrateIfNeeded
 from SpotipyFree import saveSession, parseCookieString
 
 class SpotifyDashboardApp:
     def __init__(self):
+        migrateIfNeeded()
         self.app = Flask(__name__)
         self.baseDir = Path(__file__).resolve().parent
         self.username = "Tzur"

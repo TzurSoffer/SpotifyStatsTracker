@@ -1,10 +1,8 @@
 import json
 
 try:
-    from Database.database import Database
     from Database.Migrators.base import BaseMigrator
 except ModuleNotFoundError:
-    from database import Database
     from Migrators.base import BaseMigrator
 
 class Migrator(BaseMigrator):
