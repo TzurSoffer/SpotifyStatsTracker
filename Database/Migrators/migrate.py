@@ -1,4 +1,5 @@
 from pathlib import Path
+import importlib.util
 
 def migrateIfNeeded():
     baseDir = Path(__file__).resolve().parent
@@ -6,9 +7,16 @@ def migrateIfNeeded():
     databaseVersionFile = baseDir / ".." / "Users" / "VERSION"
     databaseVersion = databaseVersionFile.read_text().strip()
     appVersion = appVersionFile.read_text().strip()
-
     while databaseVersion != appVersion:
-        if databaseVersion == "1.1.0":
-            from Database.Migrators.migrate1_1_0 import Migrator
+        if databaseVersion == "1.0.0":
+            print("Migrating from version 1.1.0")
+
+            modulePath = baseDir / "migrate1_0_0.py"
+
+            spec = importlib.util.spec_from_file_location("migrate1_0_0", modulePath)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            Migrator = module.Migrator
             Migrator().migrate()
         databaseVersion = databaseVersionFile.read_text().strip()
