@@ -4,12 +4,15 @@ import importlib.util
 def migrateIfNeeded():
     baseDir = Path(__file__).resolve().parent
     appVersionFile = baseDir / ".." / "VERSION"
-    databaseVersionFile = baseDir / ".." / "Users" / "VERSION"
-    databaseVersion = databaseVersionFile.read_text().strip()
     appVersion = appVersionFile.read_text().strip()
+    databaseVersionFile = baseDir / ".." / "Users" / "VERSION"
+    if databaseVersionFile.exists() == False:
+        databaseVersionFile.write_text(appVersion)
+        return   #< means this is first run, no migration needed
+    databaseVersion = databaseVersionFile.read_text().strip()
     while databaseVersion != appVersion:
         if databaseVersion == "1.0.0":
-            print("Migrating from version 1.1.0")
+            print("Migrating from version 1.0.0")
 
             modulePath = baseDir / "migrate1_0_0.py"
 
