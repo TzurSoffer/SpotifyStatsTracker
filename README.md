@@ -44,13 +44,14 @@ services:
     environment:
       - FLASK_APP=app.py
       - PYTHONUNBUFFERED=1
+      - TZ=America/Los_Angeles    #< don't forget to change this or you will get the wrong times for songs
     restart: always
     # Optional: uncomment for debug mode
     # environment:
     #   - FLASK_DEBUG=1
 ```
 
-Then you can run `docker compose up -d` and the app should start on `127.0.0.1:5000` or `yourIp:5000`
+Then you can run `docker compose up -d` and the app should start on `http://127.0.0.1:5000` or `http://yourIp:5000`
 
 ### Local Development
 

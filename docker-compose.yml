@@ -11,6 +11,7 @@ services:
     environment:
       - FLASK_APP=app.py
       - PYTHONUNBUFFERED=1
+      - TZ=America/Los_Angeles    #< don't forget to change this or you will get the wrong times for songs
     restart: always
     # Optional: uncomment for debug mode
     # environment:
