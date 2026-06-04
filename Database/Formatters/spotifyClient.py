@@ -1,4 +1,4 @@
-from Database.utils import convertToDatetime, timeToInt
+from Database.utils import convertToDatetime, timeToInt, msToString
 
 class Client:
     @staticmethod
@@ -42,9 +42,11 @@ class Client:
     def embedPlayInfo(track, timestamp, timePlayed):
         playedAtTimestamp = timeToInt(timestamp)
         playedAt = convertToDatetime(playedAtTimestamp)
+        
         track["playedAt"] = playedAtTimestamp
         track["playedAtText"] = playedAt.strftime("%Y-%m-%d %H:%M")
         track["timePlayed"] = timePlayed
+        track["timePlayedText"] = msToString(timePlayed)
         return track
     
     @staticmethod

@@ -85,11 +85,13 @@ class Database:
             "id": metadata["id"],
             "playedAt": metadata["playedAt"],
             "playedAtText": metadata["playedAtText"],
-            "timePlayed": metadata["timePlayed"]
+            "timePlayed": metadata["timePlayed"],
+            "timePlayedText": metadata["timePlayedText"],
         }
         metadata.pop("playedAt")
         metadata.pop("playedAtText")
         metadata.pop("timePlayed")
+        metadata.pop("timePlayedText")
         track = {metadata["id"]: metadata}
         return entry, track
 
@@ -103,6 +105,7 @@ class Database:
         meta["playedAt"] = entry["playedAt"]
         meta["playedAtText"] = entry["playedAtText"]
         meta["timePlayed"] = entry["timePlayed"]
+        meta["timePlayedText"] = entry["timePlayedText"]
         return meta
 
     def _paginateEntries(self, entries: list) -> list:

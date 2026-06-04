@@ -33,6 +33,28 @@ def timeToInt(timestampOrStr):
         except:
             return 0
 
+def msToString(ms: int | float) -> str:
+    """ Converts milliseconds into a human-readable duration string. """
+    if ms is None or ms <= 0:
+        return "0ms"
+
+    totalSeconds = int(ms) // 1000
+
+    seconds = totalSeconds % 60
+    minutes = (totalSeconds // 60) % 60
+    hours = totalSeconds // 3600
+    
+    parts = []
+
+    if hours > 0:
+        parts.append(f"{hours}h")
+    if minutes > 0 or hours > 0:
+        parts.append(f"{minutes}m")
+    if seconds > 0 or minutes > 0 or hours > 0:
+        parts.append(f"{seconds}s")
+        
+    return " ".join(parts)
+
 if __name__ == "__main__":
     import pysole
     pysole.probe(runRemainingCode=True)
