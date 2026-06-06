@@ -83,7 +83,14 @@ class Database:
     def _addTrack(self, tracks, track):
         tracks.update({track["id"]: track})
         return tracks
-    
+
+    def _saveNewTrackFromId(self, id, tracks=None):
+        if tracks == None:
+            tracks = self._loadTracks()
+        track = Client.formatTrack(self.listener.track(id))
+        tracks = self._addTrack(tracks, track)
+        self._saveTracks(tracks)
+
     def _splitEntryAndTrack(self, metadata: dict) -> tuple[list, dict]:
         entry = {
             "id": metadata["id"],
@@ -98,17 +105,14 @@ class Database:
         metadata.pop("timePlayedText")
         return entry, metadata
 
-    def _saveNewTrackFromId(self, id, tracks=None):
-        if tracks == None:
-            tracks = self._loadTracks()
-        track = Client.formatTrack(self.listener.track(id))
-        tracks = self._addTrack(tracks, track)
-        self._saveTracks(tracks)
-
     def _paginateEntry(self, entry: dict, tracks: dict = None) -> dict:
         if tracks == None:
             tracks = self._loadTracks()
-                
+
+        if entry["id"] not in tracks:
+            print(f"Missing track metadata for {entry["id"]}, downloading it")
+            self._saveNewTrackFromId(entry["id"], tracks)
+
         meta = tracks[entry["id"]]
         meta["playedAt"] = entry["playedAt"]
         meta["playedAtText"] = entry["playedAtText"]
@@ -120,10 +124,7 @@ class Database:
         ret = []
         tracks = self._loadTracks()
         for entry in entries:
-            if entry["id"] not in tracks:    #< add track if missing
-                self._saveNewTrackFromId(entry["id"], tracks)
             ret.append(self._paginateEntry(entry, tracks))
-
         return ret
 
     def appendEntries(self, newEntries: list):
@@ -307,8 +308,6 @@ class Database:
                     "totalTimeListened": 0,
                     "song": None,
                 }
-                if entry["id"] not in tracks:    #< add track if missing
-                    self._saveNewTrackFromId(entry["id"], tracks)
                 songs[key]["song"] = self._paginateEntry(entry, tracks)  #< Get full song metadata for this entry
             songs[key]["plays"] += 1
             songs[key]["totalTimeListened"] += timePlayed
