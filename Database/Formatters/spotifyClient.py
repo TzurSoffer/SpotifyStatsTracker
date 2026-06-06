@@ -13,10 +13,15 @@ class Client:
         artists = []
 
         for artist in (albumRaw.get("artists") or []):
+            imageUrl = "https://i.scdn.co/image/52c2a824e84f4e8adf0b12418f9f8306b4b5b77a"
+            if ("images" in artist) and (len(artist["images"]) > 0):
+                imageUrl = artist["images"][0]["url"]
             artists.append(
                 {
                     "name": artist.get("name", ""),
-                    "url": artist.get("external_urls", {}).get("spotify", "N/A"),
+                    "url": artist.get("external_urls", {}).get("spotify", "https://open.spotify.com/artist/6FXMGgJwohJLUSr5nVlf9X"),
+                    "imageUrl": imageUrl,
+                    "id": artist.get("id", "6FXMGgJwohJLUSr5nVlf9X"),
                 }
             )
 
@@ -31,7 +36,7 @@ class Client:
 
         return {
             "name": albumRaw.get("name", "Unknown album"),
-            "url": albumRaw.get("external_urls", {}).get("spotify", "#"),
+            "url": albumRaw.get("external_urls", {}).get("spotify", "https://open.spotify.com/album/49MNmJhZQewjt06rpwp6QR"),
             "id": albumRaw.get("id", 0),
             "imageUrl": firstImage.get("url", ""),
             "totalTracks": albumRaw.get("total_tracks", 0),
@@ -70,7 +75,6 @@ class Client:
             "artistsText": artistsText,
             "album": Client._formatAlbum(album),
             "imageUrl": firstImage.get("url", ""),
-            "imageId": album.get("id", 0),
             "duration": duration,
             "durationText": Client._formatDuration(duration),
             "explicit": bool(track.get("explicit", False)),

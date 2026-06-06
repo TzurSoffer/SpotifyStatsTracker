@@ -11,5 +11,6 @@ instance/
 Streaming*.json
 secrets.json
 cookies*.json
-Database/img/*/tracks/*
+Database/Users/*/img/tracks/*
+Database/Users/*/img/artists/*
 tmp/

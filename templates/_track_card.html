@@ -1,5 +1,5 @@
 <article class="track-card">
-  {% set imgId = track.get('imageId') or track.get('imageId', '') %}
+  {% set imgId = track.get('imageId', '') %}
   {% set item_number = item_number if item_number is defined else '' %}
   <div class="track-number">{{ item_number }}</div>
   <img class="track-cover" loading="lazy" src="/img/{{ username }}/tracks/{{ imgId }}.jpeg" alt="Album cover for {{ track.get('name','') }}" />

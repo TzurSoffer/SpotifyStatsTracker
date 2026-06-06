@@ -23,13 +23,11 @@ class Database:
         self.listener = None
         self.baseDir = Path(__file__).resolve().parent
 
-        self.imgDir = self.baseDir / "Users" / self.user / "img" / "tracks"
-        self.downloadedImagesPath = self.imgDir / "metadata.json"
+        self.imgDir_tracks = self.baseDir / "Users" / self.user / "img" / "tracks"
+        self.imgDir_artists = self.baseDir / "Users" / self.user / "img" / "artists"
         self.entriesPath = self.baseDir / "Users" / self.user / "entries.json"
         self.tracksPath = self.baseDir / "Users" / self.user / "tracks.json"
         self.progressPath = self.baseDir / "Users" / self.user / "progress.json"
-
-        self.downloadedImages = self._loadDownloadedImagesCache()
 
     def _addToDatabaseFromListener(self, data) -> None:
         if not data:
@@ -40,14 +38,6 @@ class Database:
             msPlayed = item.get("ms_played", 0)
             if track:
                 self.appendTrackData(timestamp, track, msPlayed)
-
-    def _loadDownloadedImagesCache(self) -> list:
-        if self.downloadedImagesPath.exists():
-            try:
-                return json.loads(self.downloadedImagesPath.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
-                pass
-        return []
 
     def _loadJsonFile(self, path: Path, default) -> list:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -111,7 +101,11 @@ class Database:
 
         if entry["id"] not in tracks:
             print(f"Missing track metadata for {entry["id"]}, downloading it")
-            self._saveNewTrackFromId(entry["id"], tracks)
+            try:
+                self._saveNewTrackFromId(entry["id"], tracks)
+            except:
+                print("Failed to download track")
+                return None
 
         meta = tracks[entry["id"]]
         meta["playedAt"] = entry["playedAt"]
@@ -124,7 +118,9 @@ class Database:
         ret = []
         tracks = self._loadTracks()
         for entry in entries:
-            ret.append(self._paginateEntry(entry, tracks))
+            metadata = self._paginateEntry(entry, tracks)
+            if metadata != None:
+                ret.append(metadata)
         return ret
 
     def appendEntries(self, newEntries: list):
@@ -206,31 +202,40 @@ class Database:
     def resetProgress(self):
         self.writeProgress("idle", 0, 0, "", False)
 
-    def saveImg(self, url: str, imgId: str):
-        self.imgDir.mkdir(parents=True, exist_ok=True)
-        if imgId in self.downloadedImages:
+    def _saveImg(self, path: Path, url: str, imgId: str):
+        metadataPath = path / "metadata.json"
+        path.mkdir(parents=True, exist_ok=True)
+        ids = self._loadJsonFile(metadataPath, [])
+        if imgId in ids:
             print(f"Image for {imgId} already downloaded.")
             return
         try:
             response = requests.get(url)
             response.raise_for_status()
             img = Image.open(BytesIO(response.content))
-            ext = img.format.lower() if img.format else "jpg"
+            ext = img.format.lower() if img.format else "jpeg"
             
-            img.save(self.imgDir / f"{imgId}.{ext}")
-            self.downloadedImages.append(imgId)
-            
-            self.downloadedImagesPath.parent.mkdir(parents=True, exist_ok=True)
-            self.downloadedImagesPath.write_text(
-                json.dumps(self.downloadedImages, indent=4), encoding="utf-8"
+            img.save(path / f"{imgId}.{ext}")
+            ids.append(imgId)
+
+            metadataPath.write_text(
+                json.dumps(ids, indent=4), encoding="utf-8"
             )
         except requests.exceptions.RequestException as e:
             print(f"Error fetching image from {url}: {parseError(e)}")
         except Exception as e:
             print(f"Error saving image: {parseError(e)}")
 
+    def saveTrackImg(self, url: str, imgId: str):
+        self._saveImg(self.imgDir_tracks, url, imgId)
+
+    def saveArtistImg(self, url: str, imgId: str):
+        self._saveImg(self.imgDir_artists, url, imgId)
+
     def appendMetadata(self, meta: dict) -> None:
-        self.saveImg(meta["imageUrl"], meta["imageId"])
+        self.saveTrackImg(meta["imageUrl"], meta["id"])
+        for artist in meta["artists"]:
+            self.saveArtistImg(artist["url"], artist["id"])
         entry, track = self._splitEntryAndTrack(meta)
         self.appendEntries(entry)
         self.updateTracks(track)
@@ -308,7 +313,10 @@ class Database:
                     "totalTimeListened": 0,
                     "song": None,
                 }
-                songs[key]["song"] = self._paginateEntry(entry, tracks)  #< Get full song metadata for this entry
+                metadata = self._paginateEntry(entry, tracks)  #< Get full song metadata for this entry
+                if metadata == None:
+                    continue
+                songs[key]["song"]
             songs[key]["plays"] += 1
             songs[key]["totalTimeListened"] += timePlayed
 

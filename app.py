@@ -184,7 +184,7 @@ class SpotifyDashboardApp:
             for item in pageItems:
                 song = item.get("song", {})
                 card = {}
-                card["imageId"] = song.get("imageId") or song.get("album", {}).get("imageId") or ''
+                card["id"] = song.get("id", "")
                 card["name"] = song.get("name") or song.get("title") or ""
                 card["artistsText"] = song.get("artistsText") or (", ".join(song.get("artists", [])) if song.get("artists") else song.get("artist") or "")
                 card["album"] = song.get("album") or {"name": ""}
@@ -239,11 +239,11 @@ class SpotifyDashboardApp:
 
                 card = {}
                 if rep:
-                    card["imageId"] = rep.get("imageId")
+                    card["id"] = rep.get("id", "")
                     card["album"] = rep.get("album") or {"name": rep.get("albumName") if rep.get("albumName") else ""}
                     card["url"] = rep.get("url")
                 else:
-                    card["imageId"] = ''
+                    card["id"] = ""
                     card["album"] = {"name": ""}
                     card["url"] = ""
 

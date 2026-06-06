@@ -10,6 +10,15 @@ def _import(name, modulePath):
     spec.loader.exec_module(module)
     return module
 
+def migrate(version, baseDir):
+    print(f"Migrating from version 1.{version}.0")
+
+    modulePath = baseDir / f"migrate1_{version}_0.py"
+    module = _import(f"migrate1_{version}_0", modulePath)
+
+    Migrator = module.Migrator
+    Migrator().migrate()
+
 def migrateIfNeeded():
     baseDir = Path(__file__).resolve().parent
     appVersionFile = baseDir / ".." / "VERSION"
@@ -22,20 +31,6 @@ def migrateIfNeeded():
 
     while getMiddleVersion(databaseVersion) != getMiddleVersion(appVersion):
         dbVersion = getMiddleVersion(databaseVersion)
-        if dbVersion == 0:
-            print("Migrating from version 1.0.0")
+        migrate(dbVersion, baseDir)
 
-            modulePath = baseDir / "migrate1_0_0.py"
-            module = _import("migrate1_0_0", modulePath)
-
-            Migrator = module.Migrator
-            Migrator().migrate()
-        elif dbVersion == 1:
-            print("Migrating from version 1.1.0")
-
-            modulePath = baseDir / "migrate1_1_0.py"
-            module = _import("migrate1_1_0", modulePath)
-
-            Migrator = module.Migrator
-            Migrator().migrate()
         databaseVersion = databaseVersionFile.read_text().strip()

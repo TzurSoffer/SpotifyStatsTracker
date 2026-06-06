@@ -1,5 +1,4 @@
 import json
-import os
 
 try:
     from Database.Migrators.base import BaseMigrator
