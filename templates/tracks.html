@@ -11,6 +11,7 @@
     {% if tracks %}
       {% for track in tracks %}
         {% set item_number = (startIndex | default(0)) + loop.index %}
+        {% set section = 'dashboard' %}
         {% include '_track_card.html' %}
       {% endfor %}
     {% else %}

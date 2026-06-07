@@ -21,6 +21,7 @@ class Client:
                     "name": artist.get("name", ""),
                     "url": artist.get("external_urls", {}).get("spotify", "https://open.spotify.com/artist/6FXMGgJwohJLUSr5nVlf9X"),
                     "imageUrl": imageUrl,
+                    "imageId": albumRaw.get("id", 0),
                     "id": artist.get("id", "6FXMGgJwohJLUSr5nVlf9X"),
                 }
             )
@@ -38,6 +39,7 @@ class Client:
             "name": albumRaw.get("name", "Unknown album"),
             "url": albumRaw.get("external_urls", {}).get("spotify", "https://open.spotify.com/album/49MNmJhZQewjt06rpwp6QR"),
             "id": albumRaw.get("id", 0),
+            "imageId": albumRaw.get("id", 0),
             "imageUrl": firstImage.get("url", ""),
             "totalTracks": albumRaw.get("total_tracks", 0),
             "releaseDateText": albumRaw.get("release_date", "NA"),

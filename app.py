@@ -42,7 +42,7 @@ class SpotifyDashboardApp:
     def getLatestHistory(self, limit=None):
         return self.database.getEntriesFromNew(limit)
 
-    def paginate(self, items, page, pageSize=50):
+    def getPage(self, items, page, pageSize=50):
         page = max(1, page)
         total = len(items)
         start = (page - 1) * pageSize
@@ -76,6 +76,11 @@ class SpotifyDashboardApp:
         @self.app.route('/img/<username>/tracks/<filename>')
         def serveTrackImage(username, filename):
             imageDir = os.path.join(self.baseDir, "Database", "Users", username, "img", "tracks")
+            return send_from_directory(imageDir, filename)
+
+        @self.app.route('/img/<username>/artists/<filename>')
+        def serveArtistImage(username, filename):
+            imageDir = os.path.join(self.baseDir, "Database", "Users", username, "img", "artists")
             return send_from_directory(imageDir, filename)
 
         @self.app.route("/import-history", methods=["POST"])
@@ -169,6 +174,7 @@ class SpotifyDashboardApp:
                 prevUrl=prevUrl,
                 nextUrl=nextUrl,
                 startIndex=startIndex,
+                section="dashboard",
             )
 
         @self.app.route("/top-songs", methods=["GET"])
@@ -178,27 +184,17 @@ class SpotifyDashboardApp:
 
             page = int(request.args.get("page", 1) or 1)
             rawTopSongs = self.database.getTopSongs() or []
-            pageItems, total, page, totalPages, startIndex = self.paginate(rawTopSongs, page)
+            pageItems, total, page, totalPages, startIndex = self.getPage(rawTopSongs, page)
 
             tracks = []
-            for item in pageItems:
-                song = item.get("song", {})
-                card = {}
-                card["id"] = song.get("id", "")
-                card["name"] = song.get("name") or song.get("title") or ""
-                card["artistsText"] = song.get("artistsText") or (", ".join(song.get("artists", [])) if song.get("artists") else song.get("artist") or "")
-                card["album"] = song.get("album") or {"name": ""}
-                card["playedAtText"] = song.get("playedAtText") or ""
-                dur = song.get("duration") or song.get("durationMs") or 0
-                card["durationText"] = self.formatMs(dur)
-                card["trackNumber"] = song.get("trackNumber") or song.get("track_number") or 0
-                card["discNumber"] = song.get("discNumber") or song.get("disc_number") or 0
-                card["explicit"] = song.get("explicit", False)
-                card["isrc"] = song.get("isrc")
-                card["url"] = song.get("url") or song.get("external_urls", {}).get("spotify") or ""
-                card["plays"] = item.get("plays", 0)
-                card["time"] = self.formatMs(item.get("totalTimeListened", 0))
-                tracks.append(card)
+            for song in pageItems:
+                song["artistsText"] =  ""
+                for artist in song.get("artists", []):
+                    song["artistsText"] += artist.get("name", "") + ", "
+                song["artistsText"] = song["artistsText"][:-2]
+                song["durationText"] = self.formatMs(song.get("duration", 0))
+                song["totalTimeListenedText"] = self.formatMs(song.get("totalTimeListened", 0))
+                tracks.append(song)
 
             totalPlays = sum(i.get("plays", 0) for i in rawTopSongs)
             totalMs = sum(i.get("totalTimeListened", 0) for i in rawTopSongs)
@@ -216,6 +212,7 @@ class SpotifyDashboardApp:
                 prevUrl=prevUrl,
                 nextUrl=nextUrl,
                 startIndex=startIndex,
+                section="top_songs",
             )
 
         @self.app.route("/top-artists", methods=["GET"])
@@ -225,35 +222,13 @@ class SpotifyDashboardApp:
 
             page = int(request.args.get("page", 1) or 1)
             rawTopArtists = self.database.getTopArtists() or []
-            pageItems, total, page, totalPages, startIndex = self.paginate(rawTopArtists, page)
-            history = self.getLatestHistory(None)
+            pageItems, total, page, totalPages, startIndex = self.getPage(rawTopArtists, page)
+            
             tracks = []
             for item in pageItems:
-                artistName = item.get("artist", "")
-                rep = None
-                for t in history:
-                    artists = t.get("artists") or []
-                    if artistName in artists or artistName == t.get("artist") or artistName == t.get("artistName"):
-                        rep = t
-                        break
-
-                card = {}
-                if rep:
-                    card["id"] = rep.get("id", "")
-                    card["album"] = rep.get("album") or {"name": rep.get("albumName") if rep.get("albumName") else ""}
-                    card["url"] = rep.get("url")
-                else:
-                    card["id"] = ""
-                    card["album"] = {"name": ""}
-                    card["url"] = ""
-
-                card["name"] = artistName
-                card["artistsText"] = artistName
-                card["durationText"] = self.formatMs(item.get("totalTimeListened", 0))
-                card["plays"] = item.get("plays", 0)
-                card["time"] = self.formatMs(item.get("totalTimeListened", 0))
-                card["uniqueSongs"] = item.get("uniqueSongCount", 0)
-                tracks.append(card)
+                print(item)
+                item["totalTimeListenedText"] = self.formatMs(item.get("totalTimeListened", 0))
+                tracks.append(item)
 
             totalPlays = sum(i.get("plays", 0) for i in rawTopArtists)
             totalUnique = sum(i.get("uniqueSongCount", 0) for i in rawTopArtists)
@@ -273,6 +248,7 @@ class SpotifyDashboardApp:
                 prevUrl=prevUrl,
                 nextUrl=nextUrl,
                 startIndex=startIndex,
+                section="top_artists",
             )
 
     def run(self):

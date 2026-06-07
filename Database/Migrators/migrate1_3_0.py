@@ -1,10 +1,8 @@
 import json
 try:
     from Database.Migrators.base import BaseMigrator
-    from Database.utils import msToString
 except ModuleNotFoundError:
     from Migrators.base import BaseMigrator
-    from utils import msToString
 
 class Migrator(BaseMigrator):
     def __init__(self, *args, **kwargs):
@@ -12,7 +10,7 @@ class Migrator(BaseMigrator):
 
     def checkPreconditions(self):
         super().checkPreconditions()
-        if self.entriesPath.exists() == False:
+        if self.tracksPath.exists() == False:
             raise FileExistsError("Entries file doesn't exist. You might be on an older version.")
 
     def migrate(self):
@@ -23,21 +21,27 @@ class Migrator(BaseMigrator):
         ]
         for user in users:
             baseDir = self.baseDir / ".." / "Users" / user
-            self.entriesPath =  baseDir / "entries.json"
+            self.tracksPath =  baseDir / "tracks.json"
             self.checkPreconditions()
 
-            with open(self.entriesPath, "r", encoding="utf-8") as f:
-                entries = json.load(f)
+            with open(self.tracksPath, "r", encoding="utf-8") as f:
+                tracks = json.load(f)
 
-            for index, entry in enumerate(entries):
-                entry["timePlayedText"] = msToString(entry["timePlayed"])
+            for index, key in enumerate(tracks):
+                for artist in tracks[key]["artists"]:
+                    artist["imageId"] = artist["id"]
 
-                print(f"Processed {index+1}/{len(entries)} entries", end="\r")
+                print(f"Processed {index+1}/{len(tracks)} entries", end="\r")
 
-            with open(self.entriesPath, "w", encoding="utf-8") as f:
-                json.dump(entries, f, indent=4, ensure_ascii=False)
+            for index, key in enumerate(tracks):
+                tracks[key]["album"]["imageId"] = tracks[key]["album"]["id"]
+
+                print(f"Processed {index+1}/{len(tracks)} entries", end="\r")
+
+            with open(self.tracksPath, "w", encoding="utf-8") as f:
+                json.dump(tracks, f, indent=4, ensure_ascii=False)
         
-        self.updateAppVersion("1.2.0")
+        self.updateAppVersion("1.4.0")
 
 
 

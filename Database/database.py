@@ -292,12 +292,6 @@ class Database:
             filtered.append(track)
         return filtered
 
-    def getTopSongs(self, startDate: datetime.datetime = None, endDate: datetime.datetime = None, by: str = "plays") -> list:
-        return sorted(
-            self.getSongsStats(startDate, endDate),
-            key=lambda item: (-item[by], -item["totalTimeListened"], item["song"].get("name", ""))
-        )
-
     def getSongsStats(self, startDate: datetime.datetime = None, endDate: datetime.datetime = None) -> list:
         """Return songs sorted by play count with full song metadata and listen totals."""
         tracks = self._loadTracks()
@@ -308,50 +302,45 @@ class Database:
             key = entry["id"]
             timePlayed = entry["timePlayed"]
             if key not in songs:
-                songs[key] = {
-                    "plays": 0,
-                    "totalTimeListened": 0,
-                    "song": None,
-                }
                 metadata = self._paginateEntry(entry, tracks)  #< Get full song metadata for this entry
                 if metadata == None:
                     continue
-                songs[key]["song"]
+                songs[key] = metadata
+                songs[key]["plays"] = 0
+                songs[key]["totalTimeListened"] = 0
+
             songs[key]["plays"] += 1
             songs[key]["totalTimeListened"] += timePlayed
 
-        normalized = []
-        for v in songs.values():
-            normalized.append({
-                "plays": v["plays"],
-                "totalTimeListened": v["totalTimeListened"],
-                "song": v["song"],
-            })
-        return normalized
+        return list(songs.values())
 
-    def getTopArtists(self, startDate: datetime.datetime = None, endDate: datetime.datetime = None, by: str = "plays") -> list:
+    def getTopSongs(self, startDate: datetime.datetime = None, endDate: datetime.datetime = None, by: str = "plays") -> list:
         return sorted(
-            self.getArtistsStats(startDate, endDate),
-            key=lambda item: (-item[by], -item["totalTimeListened"], item["artist"])
+            self.getSongsStats(startDate, endDate),
+            key=lambda item: (-item[by], -item["totalTimeListened"], item["name"])
         )
 
     def getArtistsStats(self, startDate: datetime.datetime = None, endDate: datetime.datetime = None) -> list:
         """Return artists sorted by total plays with aggregated data and listen totals."""
+        tracks = self._loadTracks()
         entries = self.filterEntriesByInterval(self._loadEntries(), startDate, endDate)
         artistsStats = {}
 
         for entry in entries:
-            artists = entry.get("artists", [])
             timePlayed = entry["timePlayed"]
+            metadata = self._paginateEntry(entry, tracks)
+            if metadata == None:
+                continue
+            
+            artists = metadata.get("artists", [])
             for artist in artists:
                 artistName = artist["name"]
                 if artistName not in artistsStats:
-                    artistsStats[artistName] = {
-                        "plays": 0,
-                        "totalTimeListened": 0,
-                        "artist": artistName,
-                        "uniqueSongs": set(),
-                    }
+                    artistsStats[artistName] = artist
+                    artistsStats[artistName]["plays"] = 0
+                    artistsStats[artistName]["totalTimeListened"] = 0
+                    artistsStats[artistName]["uniqueSongs"] = set()
+                    artistsStats[artistName]["plays"] = 0
 
                 artistsStats[artistName]["plays"] += 1
                 artistsStats[artistName]["totalTimeListened"] += timePlayed
@@ -359,14 +348,18 @@ class Database:
 
         normalized = []
         for v in artistsStats.values():
-            normalized.append({
-                "plays": v["plays"],
-                "totalTimeListened": v["totalTimeListened"],
-                "artist": v["artist"],
-                "uniqueSongCount": len(v["uniqueSongs"]),
-            })
-        
+            uniqueSongCount = len(v["uniqueSongs"])
+            v["uniqueSongCount"] = uniqueSongCount
+            v.pop("uniqueSongs")
+            normalized.append(v)
+
         return normalized
+
+    def getTopArtists(self, startDate: datetime.datetime = None, endDate: datetime.datetime = None, by: str = "plays") -> list:
+        return sorted(
+            self.getArtistsStats(startDate, endDate),
+            key=lambda item: (-item[by], -item["totalTimeListened"], item["name"])
+        )
 
     def startListener(self, cookiesFile):
         self.listener = Listener(cookiesFile)
