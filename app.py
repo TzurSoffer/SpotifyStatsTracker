@@ -34,6 +34,16 @@ class SpotifyDashboardApp:
             print("Started listener thread.")
             time.sleep(2)  # Give listener time to initialize
 
+    def _getPercentPlayedText(self, item, sortBy, totalPlays, totalMs):
+        if sortBy == "plays":
+            percent = round((item.get("plays", 0) / totalPlays * 100), 1) if totalPlays else 0
+            return f"{percent}% of all plays"
+        elif sortBy == "totalTimeListened":
+            percent =  round((item.get("totalTimeListened", 0) / totalMs * 100), 1) if totalMs else 0
+            return f"{percent}% of all time played"
+        else:
+            return ""
+
     def _embedSongTextElements(self, song) -> dict:
         if "playedAt" in song:   #< some tracks just dont have it (top tracks)
             playedAt = convertToDatetime(song["playedAt"])
@@ -48,24 +58,26 @@ class SpotifyDashboardApp:
         song["album"]["releaseDateText"] = releaseDateText
         return song
 
-    def _embedTopSongTextElements(self, song) -> dict:
+    def _embedTopSongTextElements(self, song, sortBy=None, totalPlays=0, totalMs=0) -> dict:
         song["totalTimeListenedText"] = msToString(song.get("totalTimeListened", 0))
         song["firstListenedText"] = convertToDatetime(song.get("firstListenedAt", 0)).strftime("%b %d, %Y")
+        song["sortPercentText"] = self._getPercentPlayedText(song, sortBy, totalPlays, totalMs)
         return song
 
-    def _embedArtistTextElements(self, artist) -> dict:
+    def _embedArtistTextElement(self, artist, sortBy=None, totalPlays=0, totalMs=0) -> dict:
         artist["totalTimeListenedText"] = msToString(artist.get("totalTimeListened", 0))
         artist["firstListenedText"] = convertToDatetime(artist.get("firstListenedAt", 0)).strftime("%b %d, %Y")
+        artist["sortPercentText"] = self._getPercentPlayedText(artist, sortBy, totalPlays, totalMs)
         return artist
 
     def _embedSongsTextElements(self, songs) -> list[dict]:
         return [self._embedSongTextElements(song) for song in songs]
 
-    def _embedTopSongsTextElements(self, songs) -> list[dict]:
-        return [self._embedTopSongTextElements(song) for song in songs]
+    def _embedTopSongsTextElements(self, songs, sortBy=None, totalPlays=0, totalMs=0) -> list[dict]:
+        return [self._embedTopSongTextElements(song, sortBy, totalPlays, totalMs) for song in songs]
 
-    def _embedArtistsTextElements(self, songs) -> list[dict]:
-        return [self._embedArtistTextElements(song) for song in songs]
+    def _embedArtistsTextElements(self, songs, sortBy=None, totalPlays=0, totalMs=0) -> list[dict]:
+        return [self._embedArtistTextElement(song, sortBy, totalPlays, totalMs) for song in songs]
 
     def _getNeighboringUrls(self, name, page, totalPages):
         prevUrl = url_for(name, page=page - 1) if page > 1 else None
@@ -246,12 +258,12 @@ class SpotifyDashboardApp:
             startDate, endDate = self._getDateRange(interval, customStart, customEnd)
             rawTopSongs = self.database.getTopSongs(startDate=startDate, endDate=endDate, by=sortBy) or []
             tracks, totalPages, startIndex = self.getPage(rawTopSongs, page)
-            tracks = self._embedSongsTextElements(tracks)
-            tracks = self._embedTopSongsTextElements(tracks)
-
             totalPlays = self._getTotal(rawTopSongs, "plays")
             totalMs = self._getTotal(rawTopSongs, "totalTimeListened")
             prevUrl, nextUrl = self._getNeighboringUrls("topSongsPage", page, totalPages)
+
+            tracks = self._embedSongsTextElements(tracks)
+            tracks = self._embedTopSongsTextElements(tracks, sortBy=sortBy, totalPlays=totalPlays, totalMs=totalMs)
 
             return render_template(
                 "top_songs.html",
@@ -285,11 +297,11 @@ class SpotifyDashboardApp:
             startDate, endDate = self._getDateRange(interval, customStart, customEnd)
             rawTopArtists = self.database.getTopArtists(startDate=startDate, endDate=endDate, by=sortBy) or []
             artists, totalPages, startIndex = self.getPage(rawTopArtists, page)
-            artists = self._embedArtistsTextElements(artists)
-
             totalPlays = self._getTotal(rawTopArtists, "plays")
             totalUnique = self._getTotal(rawTopArtists, "uniqueSongCount")
             totalMs = self._getTotal(rawTopArtists, "totalTimeListened")
+
+            artists = self._embedArtistsTextElements(artists, sortBy=sortBy, totalPlays=totalPlays, totalMs=totalMs)
             prevUrl, nextUrl = self._getNeighboringUrls("topArtistsPage", page, totalPages)
 
             return render_template(

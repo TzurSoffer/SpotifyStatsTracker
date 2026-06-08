@@ -27,15 +27,15 @@
           {% if track.get('plays') or track.get('uniqueSongCount') or track.get('time') %}
           <div class="track-meta small">
               {% if track.get('plays') %}
-              <div>You played {{ track.get('name', '') }} a total of {{ track.get('plays') }} times</div>
+              <div class="track-meta small">
+                  {% if track.get('plays') %}{{ track.get('plays') }} plays{% endif %}
+                  {% if track.get('totalTimeListenedText') %} · {{ track.get('totalTimeListenedText') }}{% endif %}
+                  {% if track.get('sortPercentText') %} · {{ track.get('sortPercentText') }}{% endif %}
+              </div>
               {% endif %}
 
               {% if track.get('uniqueSongCount') %}
               <div>You played {{ track.get('uniqueSongCount') }} different songs by {{ track.get('name', '') }}</div>
-              {% endif %}
-
-              {% if track.get('totalTimeListenedText') %}
-              <div>You played {{ track.get('name', '') }} for a total of {{ track.get('totalTimeListenedText') }}</div>
               {% endif %}
           </div>
           {% endif %}
@@ -45,6 +45,7 @@
           <div class="track-meta small">
               {% if track.get('plays') %}{{ track.get('plays') }} plays{% endif %}
               {% if track.get('totalTimeListenedText') %} · {{ track.get('totalTimeListenedText') }}{% endif %}
+              {% if track.get('sortPercentText') %} · {{ track.get('sortPercentText') }}{% endif %}
           </div>
           {% endif %}
         {% else %}
