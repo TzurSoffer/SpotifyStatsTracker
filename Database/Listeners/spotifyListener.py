@@ -3,10 +3,10 @@ import time
 from SpotipyFree import Spotify
 
 class Listener:
-    def __init__(self, cookiesFile):
+    def __init__(self, cookiesFile, refreshInterval=6):
         self.run = False
         self.sp = Spotify(cookiesFile=cookiesFile)
-        self.sp.startRecentlyPlayedListener()
+        self.sp.startRecentlyPlayedListener(refreshInterval=refreshInterval)
         self.recentlyPlayed_Z1 = self.sp.current_user_recently_played()
 
     def isLoggedIn(self):
@@ -35,7 +35,7 @@ class Listener:
         self.run = True
         while self.run:
             try:
-                recentlyPlayed = self.sp.current_user_recently_played()
+                recentlyPlayed = self.sp.current_user_recently_played()    #< doesn't trigger any websocket requests (spam safe)
                 if recentlyPlayed != self.recentlyPlayed_Z1:
                     callback(self.getNewItems(recentlyPlayed))
                     # print(f"New items found, callback executed. with {self.getNewItems(recentlyPlayed)}")
