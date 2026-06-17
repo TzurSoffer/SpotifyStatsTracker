@@ -1,3 +1,6 @@
+import csv
+import json
+import datetime
 import SpotipyFree
 
 try:
@@ -18,13 +21,32 @@ class Importer:
         # track = self.sp.track(track["external_urls"]["spotify"])
         return track
 
+    def _convertToList(self, export):
+        if export.lstrip().startswith("FILE_PATH,"):
+            return export.splitlines()[1:], "musicoletPremium"
+        try:
+            export = json.loads(export)
+            if "msPlayed" in export[0]:   #< Acount export
+                return export, "spotifyAcountExport"
+            if "ts" in export[0]:         #< Extended export
+                return export, "spotifyExtendedExport"
+        except:
+            pass
+        return [], "None"
+    
+    def getLengthOfImport(self, export):
+        return len(self._convertToList(export)[0])
+
     def importHistory(self, history, known=[]):
+        history, type = self._convertToList(history)
         if len(history) == 0:
             return []
-        if "msPlayed" in history[0]:   #< Acount export
+        if type == "spotifyAcountExport":
             return self.importAcountHistory(history, known=known)
-        elif "ts" in history[0]:       #< Extended history export
-            return self.importExtendedHistory(history, known=known)
+        if type == "spotifyExtendedExport":
+                return self.importExtendedHistory(history, known=known)
+        if type == "musicoletPremium":
+            return self.importMusicoletCSVExport(history, known=known)
         return []
 
     def buildKnownIndex(self, knownTrack):
@@ -78,3 +100,45 @@ class Importer:
             return name, artist, startTimestamp, timePlayed
         
         yield from self._import(dataFunction, history, known)
+
+    def importMusicoletCSVExport(self, rows, known=[]):
+        def expand(rows):
+            ### Data formatted in: FILE_PATH,TITLE,ARTIST,ALBUM,ALBUM_ARTIST,COMPOSER,GENRE,YEAR,DURATION_MS,PLAY_COUNT
+            NAME = 1
+            ARTISTS = 2
+            DURATION_MS = 8
+            PLAYCOUNT = 9
+
+            currentTime = datetime.datetime.now()
+            formatedData = []
+            reader = csv.reader(rows)
+            
+            for song in reader:
+                if not song:
+                    continue
+                    
+                try:
+                    name = song[NAME]
+                    mainArtist = song[ARTISTS].split("/")[0]
+                    timePlayed = int(song[DURATION_MS])
+                    play_count = int(song[PLAYCOUNT])
+                    
+                    for _ in range(play_count):
+                        startTimestamp = currentTime.strftime("%Y-%m-%d %H:%M:%S")
+                        formatedData.append((
+                            name,
+                            mainArtist,
+                            startTimestamp,
+                            timePlayed
+                        ))
+                        currentTime += datetime.timedelta(milliseconds=timePlayed)
+                        
+                except (IndexError, ValueError) as e:
+                    continue
+                    
+            return formatedData
+
+        def dataFunction(item):
+            return item
+
+        yield from self._import(dataFunction, expand(rows), known)

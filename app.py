@@ -162,12 +162,6 @@ class SpotifyDashboardApp:
 
         return startDate, endDate
 
-    def runImportBackground(self, historyData):
-        try:
-            self.database.importSpotifyHistory(historyData)
-        except Exception:
-            pass
-
     def ensureLoggedIn(self):
         if self.cookiesFile.exists():
             try:
@@ -205,12 +199,7 @@ class SpotifyDashboardApp:
             if upload is None or upload.filename == "":
                 return redirect(url_for("importPage"))
 
-            try:
-                historyData = json.load(upload)
-            except json.JSONDecodeError:
-                return redirect(url_for("importPage"))
-
-            thread = threading.Thread(target=self.runImportBackground, args=(historyData,), daemon=True)
+            thread = threading.Thread(target=self.database.importHistory, args=(upload.read().decode("utf-8"),), daemon=True)
             thread.start()
             time.sleep(1)  # Give thread time to start and update progress
             return redirect(url_for("importPage"))

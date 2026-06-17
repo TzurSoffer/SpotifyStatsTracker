@@ -257,11 +257,11 @@ class Database:
 
         self._saveEntries(entries)
 
-    def importSpotifyHistory(self, exportedHistory):
+    def importHistory(self, exportedHistory):
         entries = self._loadEntries()
         tracks = self._loadTracks()
         importer = Importer()
-        total = len(exportedHistory)
+        total = importer.getLengthOfImport(exportedHistory)
         self.writeProgress("running", 0, total, "Starting import")
 
         index = 0

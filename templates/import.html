@@ -10,7 +10,7 @@
   <section class="card import-card">
     <form id="import-form" action="{{ url_for('importHistory') }}" method="post" enctype="multipart/form-data">
       <label for="history_file">Spotify history JSON file</label>
-      <input id="history_file" name="history_file" type="file" accept=".json" required />
+      <input id="history_file" name="history_file" type="file" accept=".json, .csv" required />
       <button class="primary-button" type="submit">Start Import</button>
     </form>
 
