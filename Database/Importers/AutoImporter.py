@@ -54,10 +54,11 @@ class Watchdog:
         self.run = False
 
 class AutoImporter:
-    def __init__(self, folderPath, importCallback, pollInterval=5):
+    def __init__(self, folderPath, importCallback, pollInterval=5, keyword=None):
         self.folderPath = folderPath
         self.pollInterval = pollInterval
         self.importCallback = importCallback
+        self.keyword = keyword
         self.wd = Watchdog()
 
     def _handleImport(self, path):
@@ -69,10 +70,15 @@ class AutoImporter:
                 os.makedirs(doneDirectory)
                 print(f"Created directory: {doneDirectory}")
             destinationPath = os.path.join(doneDirectory, fileName)
-            
-            with open(path, "r", encoding="utf-8") as f:
-                self.importCallback(f.read())
-            
+
+            if self.keyword is not None and self.keyword not in fileName:
+                print(f"Keyword '{self.keyword}' not found in '{fileName}'. Skipping import and moving directly to DONE.")
+            else:
+                # Import the file normally if keyword matches or keyword is None
+                with open(path, "r", encoding="utf-8") as f:
+                    self.importCallback(f.read())
+                print(f"Successfully imported {fileName}")
+
             shutil.move(path, destinationPath)
             print(f"Successfully moved {fileName} to DONE/")
             
@@ -84,5 +90,5 @@ class AutoImporter:
 
 
 if __name__ == "__main__":
-    autoImporter = AutoImporter("../../autoImport", print, 1)
+    autoImporter = AutoImporter("../../autoImport", print, pollInterval=1, keyword="Weekly")
     autoImporter.start()

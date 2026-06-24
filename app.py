@@ -368,5 +368,6 @@ class SpotifyDashboardApp:
         self.app.run(host="0.0.0.0", debug=True, port=5000, threaded=False, use_reloader=False)
 
 if __name__ == "__main__":
+    ## $env:IMPORT_KEYWORD="Weekly"
     dashboardApp = SpotifyDashboardApp()
     dashboardApp.run()

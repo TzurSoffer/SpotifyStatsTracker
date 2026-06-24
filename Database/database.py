@@ -1,4 +1,5 @@
 import datetime
+import os
 import threading
 import json
 from pathlib import Path
@@ -34,10 +35,13 @@ class Database:
         self.autoImportFolderPath = self.baseDir / ".." / "autoImport"
 
         self.fileLock = threading.RLock()
-        
+
+        filterKeyword = os.environ.get("IMPORT_KEYWORD", None)
+        print(f"auto import filtering by {filterKeyword}")
         self.autoImporter = AutoImporter(folderPath=self.autoImportFolderPath,
                                          importCallback=self.importHistory,
-                                         pollInterval=5)
+                                         pollInterval=5,
+                                         keyword=filterKeyword)
 
     def _loadJsonFile(self, path: Path, default):
         with self.fileLock:
@@ -277,6 +281,7 @@ class Database:
                 e, t = self._splitEntryAndTrack(meta)
                 entries.append(e)
                 tracks = self._addTrack(tracks, t)
+                self.saveTrackImg(t["imageUrl"], t["imageId"])
                 self.writeProgress("running", index, total, f"Imported {index} of {total}")
             self._saveEntries(entries)
             self._saveTracks(tracks)

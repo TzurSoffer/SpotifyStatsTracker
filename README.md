@@ -17,7 +17,7 @@ A web application that allows users to track and analyze their Spotify listening
 - Track your spotify recently listened in real time
 - Import Spotify data export
 - Import musicolet pro exports
-- Automatically import files in the 'auto-import folder'
+- Automatically import files in the 'auto-import folder' with optional filtering
 
 ## Installation
 
@@ -42,7 +42,7 @@ version: '3.8'
 
 services:
   spotify-tracker:
-    image: mepro3/spotify-tracker
+    image: spotify-tracker
     ports:
       - "5000:5000"
     volumes:
@@ -53,10 +53,9 @@ services:
       - FLASK_APP=app.py
       - PYTHONUNBUFFERED=1
       - TZ=America/Los_Angeles        #< don't forget to change this or you will get the wrong times for songs
+      # - IMPORT_KEYWORD=Weekly       #< Uncomment to apply a filter to what files get auto-imported (only files containing this will be imported)
+      # - FLASK_DEBUG=1               #< To get more detailed logs from Flask (provide this when opening an issue)
     restart: always
-    # Optional: uncomment for debug mode
-    # environment:
-    #   - FLASK_DEBUG=1
 ```
 
 Then you can run `docker compose up -d` and the app should start on `http://127.0.0.1:5000` or `http://yourIp:5000`
