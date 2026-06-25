@@ -42,7 +42,7 @@ version: '3.8'
 
 services:
   spotify-tracker:
-    image: spotify-tracker
+    image: mepro3/spotify-tracker
     ports:
       - "5000:5000"
     volumes:
