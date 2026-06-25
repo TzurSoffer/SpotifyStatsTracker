@@ -171,7 +171,7 @@ class Database:
         """Return total number of entries in the database."""
         return len(self._loadEntries())
     
-    def getEntriesFromNew(self, count: int | None = None, startIndex: int = 0) -> list:
+    def getEntriesFromNew(self, count: int | None = None, startIndex: int = 0, fullPagination: bool = True) -> list:
         """ Return the latest `count` entries from history, sorted from newest to oldest. If count is None, return all entries. """
         entries = self._loadEntries()
         startPos = len(entries) - startIndex   #< Everything is reversed
@@ -182,10 +182,12 @@ class Database:
             slicedEntries = entries[startPos - 1 : endPos : -1]   #< slice and reverse
         else:
             slicedEntries = entries[startPos - 1 : : -1]          #< slice and reverse
-            
-        return self._paginateEntries(slicedEntries)
+        
+        if fullPagination:
+            return self._paginateEntries(slicedEntries)
+        return slicedEntries
 
-    def getEntriesFromOld(self, count: int | None = None, startIndex: int = 0) -> list:
+    def getEntriesFromOld(self, count: int | None = None, startIndex: int = 0, fullPagination: bool = True) -> list:
             """ Return the oldest `count` entries from history, sorted from oldest to newest. If count is None, return all entries. """
             entries = self._loadEntries()
 
@@ -195,7 +197,9 @@ class Database:
             else:
                 slicedEntries = entries[startIndex:]
                 
-            return self._paginateEntries(slicedEntries)
+            if fullPagination:
+                return self._paginateEntries(slicedEntries)
+            return slicedEntries
 
     def writeProgress(self, status: str, current: int = 0, total: int = 0, message: str = "", error: bool = False):
         payload = {
@@ -305,7 +309,7 @@ class Database:
             self.writeProgress("failed", index, total, f"Import failed: {parseError(e)}", error=True)
             raise
 
-    def filterEntriesByInterval(self, entries: list, startDate: datetime.datetime = None, endDate: datetime.datetime = None) -> list:
+    def filterByInterval(self, entries: list, startDate: datetime.datetime = None, endDate: datetime.datetime = None) -> list:
         if startDate is None and endDate is None:
             return entries
 
@@ -325,7 +329,7 @@ class Database:
     def getSongsStats(self, startDate: datetime.datetime = None, endDate: datetime.datetime = None) -> list:
         """Return songs sorted by play count with full song metadata and listen totals."""
         tracks = self._loadTracks()
-        entries = self.filterEntriesByInterval(self._loadEntries(), startDate, endDate)
+        entries = self.filterByInterval(self._loadEntries(), startDate, endDate)
         songs = {}
 
         for entry in entries:
@@ -340,7 +344,7 @@ class Database:
                 songs[key] = metadata
                 songs[key]["plays"] = 0
                 songs[key]["totalTimeListened"] = 0
-                songs[key]["firstListenedAt"] = playedAt       #< database is sorted, so first find must be first time lisened
+                songs[key]["firstListenedAt"] = playedAt       #< database is sorted, so first find must be first time listened
 
             songs[key]["plays"] += 1
             songs[key]["totalTimeListened"] += timePlayed
@@ -349,7 +353,7 @@ class Database:
     def getArtistsStats(self, startDate: datetime.datetime = None, endDate: datetime.datetime = None) -> list:
         """Return artists sorted by total plays with aggregated data and listen totals."""
         tracks = self._loadTracks()
-        entries = self.filterEntriesByInterval(self._loadEntries(), startDate, endDate)
+        entries = self.filterByInterval(self._loadEntries(), startDate, endDate)
         artistsStats = {}
 
         for entry in entries:
@@ -381,8 +385,45 @@ class Database:
             normalized.append(v)
 
         return normalized
+    
+    def _getListeningTotals(self, entries):
+        totalSongsPlayed = 0
+        totalDurationMs = 0
+        for entry in entries:
+            totalSongsPlayed += 1
+            totalDurationMs += entry["timePlayed"]
+        return totalSongsPlayed, totalDurationMs
 
-    def _getTopStats(self, items, compareKeys, startDate: datetime.datetime = None, endDate: datetime.datetime = None, by: str = "plays") -> list:
+    def _getTotal(self, arr, key):
+        return sum(i.get(key, 0) for i in arr)
+
+    def getOverallStats(self, startDate: datetime.datetime = None, endDate: datetime.datetime = None) -> list:
+        """Return songs sorted by play count with full song metadata and listen totals."""
+        previousEntries = []
+        if startDate and endDate:
+            duration = endDate - startDate
+            previousStart = startDate - duration
+            previousEnd = startDate
+            previousEntries = self.filterByInterval(self._loadEntries(),
+                                                    previousStart,
+                                                    previousEnd)
+        currentTopSongs = self.getTopSongs(startDate=startDate, endDate=endDate, by="plays")
+        currentTopArtists = self.getTopArtists(startDate=startDate, endDate=endDate, by="totalTimeListened")
+        
+        # By using the already calculated currentTopSongs, we can save a lot of time by not having to iterate through the entire entries list again to calculate the totals.
+        totalSongsPlayed = self._getTotal(currentTopSongs, "plays")
+        totalDurationMs = self._getTotal(currentTopSongs, "totalTimeListened")
+        previousSongsPlayed, previousDurationMs = self._getListeningTotals(previousEntries)
+        
+        return {"currentTopSongs": currentTopSongs,
+                "currentTopArtists": currentTopArtists,
+                "totalSongsPlayed": totalSongsPlayed,
+                "totalDurationMs": totalDurationMs,
+                "previousSongsPlayed": previousSongsPlayed,
+                "previousDurationMs": previousDurationMs
+                }
+
+    def _sortTopStats(self, items, compareKeys, by: str = "plays") -> list:
         """
         Sorts songs within a date range. 
         'plays' and 'totalTimeListened' are sorted descending (highest first).
@@ -402,13 +443,12 @@ class Database:
     def getTopSongs(self, startDate: datetime.datetime = None, endDate: datetime.datetime = None, by: str = "plays") -> list:
         songs = self.getSongsStats(startDate, endDate)
         compKeys = (by, "totalTimeListened", "name")
-        return self._getTopStats(songs, compKeys, startDate, endDate, by)
-        
+        return self._sortTopStats(songs, compKeys, by)
 
     def getTopArtists(self, startDate: datetime.datetime = None, endDate: datetime.datetime = None, by: str = "plays") -> list:
         artists = self.getArtistsStats(startDate, endDate)
         compKeys = (by, "totalTimeListened", "name")
-        return self._getTopStats(artists, compKeys, startDate, endDate, by)
+        return self._sortTopStats(artists, compKeys, by)
 
     def startListener(self, cookiesFile):
         self.listener = Listener(cookiesFile)
@@ -424,7 +464,6 @@ class Database:
 
 
 if __name__ == "__main__":
-    import SpotipyFree
 
     manager = Database(user="Tzur")
     manager.startListener("cookies.json")
@@ -432,6 +471,7 @@ if __name__ == "__main__":
     import pysole
     pysole.probe()
 
+    # import SpotipyFree
     # sp = SpotipyFree.Spotify()
     # sp.login()
 
