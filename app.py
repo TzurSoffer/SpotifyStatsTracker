@@ -30,11 +30,10 @@ class SpotifyDashboardApp:
             self.currentVersion = "0.0.0"
         self.latestVersion = None
         self._version_lock = threading.Lock()
-
-        self.registerRoutes()
-
         self.startVersionCheck_thread()
         self.checkLogin_thread()
+
+        self.registerRoutes()
 
     def startListenerIfNeeded(self):
         if self.database.listener is None:
@@ -43,22 +42,26 @@ class SpotifyDashboardApp:
             time.sleep(2)  # Give listener time to initialize
     
     def checkLogin_thread(self):
+        self._ensureLogin()
         thread = threading.Thread(target=self._checkLoginLoop, daemon=True)
         thread.start()
     
+    def _ensureLogin(self):
+        if self.cookiesFile.exists():
+            try:
+                json.loads(self.cookiesFile.read_text(encoding="utf-8"))
+                self.startListenerIfNeeded()
+                if self.database.isListenerLoggedIn():
+                    self.isLoggedIn = True
+            except Exception as e:
+                print(e)
+                self.isLoggedIn = False
+        else:
+            self.isLoggedIn = False
+    
     def _checkLoginLoop(self):
         while True:
-            if self.cookiesFile.exists():
-                try:
-                    json.loads(self.cookiesFile.read_text(encoding="utf-8"))
-                    self.startListenerIfNeeded()
-                    if self.database.isListenerLoggedIn():
-                        self.isLoggedIn = True
-                except Exception as e:
-                    print(e)
-                    self.isLoggedIn = False
-            else:
-                self.isLoggedIn = False
+            self._ensureLogin()
             time.sleep(60 * 5)  # Check every 5 minutes
 
     def startVersionCheck_thread(self):
