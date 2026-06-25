@@ -257,11 +257,14 @@ class Database:
 
     def saveArtistImg(self, url: str, imgId: str):
         self._saveImg(self.imgDir_artists, url, imgId)
+    
+    def saveImagesFromTrack(self, track: dict):
+        self.saveTrackImg(track["imageUrl"], track["imageId"])
+        for artist in track["artists"]:
+            self.saveArtistImg(artist["imageUrl"], artist["imageId"])
 
     def appendMetadata(self, meta: dict) -> None:
-        self.saveTrackImg(meta["imageUrl"], meta["imageId"])
-        for artist in meta["artists"]:
-            self.saveArtistImg(artist["imageUrl"], artist["imageId"])
+        self.saveImagesFromTrack(meta)
         entry, track = self._splitEntryAndTrack(meta)
         self.appendEntries(entry)
         self.updateTracks(track)
@@ -292,7 +295,7 @@ class Database:
                 e, t = self._splitEntryAndTrack(meta)
                 entries.append(e)
                 tracks = self._addTrack(tracks, t)
-                self.saveTrackImg(t["imageUrl"], t["imageId"])
+                self.saveImagesFromTrack(t)
                 self.writeProgress("running", index, total, f"Imported {index} of {total}")
             self._saveEntries(entries)
             self._saveTracks(tracks)
