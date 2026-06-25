@@ -170,45 +170,48 @@ class SpotifyDashboardApp:
         return (items[start:end], totalPages, start)
 
     def _getDateRange(self, interval: str = None, customStart: str = None, customEnd: str = None):
-        """Get start and end dates based on interval or custom dates.
+            """Get start and end dates based on interval or custom dates.
 
-        Returns a half-open local interval [startDate, endDate).
-        """
-        nowLocal = now()
-        endDate = nowLocal
-        startDate = None
+            Returns a half-open local interval [startDate, endDate).
+            """
+            nowLocal = now()
+            startDate = None
 
-        if customStart and customEnd:
-            try:
-                startLocal = parseDateString(customStart)
-                endLocal = parseDateString(customEnd)
-                if startLocal is None or endLocal is None:
-                    raise ValueError("Invalid custom date")
-                # Make custom end inclusive by extending to the next midnight.
-                endLocalExclusive = endLocal + timedelta(days=1)
-                startDate = startLocal
-                endDate = endLocalExclusive
-            except ValueError:
-                pass
+            futureBuffer = timedelta(days=1) 
 
-        if not startDate:
-            if interval == "day":
-                dayStartLocal = startOfDay(nowLocal)
-                # Match the manual "last day" range: the previous full calendar day.
-                startDate = dayStartLocal - timedelta(days=1)
-                endDate = dayStartLocal
-            elif interval == "week":
-                startDate = endDate - timedelta(weeks=1)
-            elif interval == "month":
-                startDate = endDate - timedelta(days=30)
-            elif interval == "year":
-                startDate = endDate - timedelta(days=365)
-            elif interval == "5years":
-                startDate = endDate - timedelta(days=365*5)
-            else:
-                return None, None    # Default: all
+            endDate = nowLocal + futureBuffer   #< bypass any timezone issues
 
-        return startDate, endDate
+            if customStart and customEnd:
+                try:
+                    startLocal = parseDateString(customStart)
+                    endLocal = parseDateString(customEnd)
+                    if startLocal is None or endLocal is None:
+                        raise ValueError("Invalid custom date")
+
+                    startDate = startLocal
+                    endDate = endLocal + timedelta(days=1)
+                except ValueError:
+                    pass
+
+            if not startDate:
+                if interval == "day":
+                    startDate = nowLocal - timedelta(days=1)
+
+                elif interval == "week":
+                    startDate = nowLocal - timedelta(weeks=1)
+
+                elif interval == "month":
+                    startDate = nowLocal - timedelta(days=30)
+
+                elif interval == "year":
+                    startDate = nowLocal - timedelta(days=365)
+
+                elif interval == "5years":
+                    startDate = nowLocal - timedelta(days=365*5)
+                else:
+                    return None, None    # Default: all
+
+            return startDate, endDate
 
     def _getPreviousDateRange(self, startDate, endDate):
         if not startDate or not endDate:
