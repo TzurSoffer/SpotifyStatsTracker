@@ -32,12 +32,14 @@ class Database:
         self.imgDir_artists = self.baseDir / "Users" / self.user / "img" / "artists"
         self.entriesPath = self.baseDir / "Users" / self.user / "entries.json"
         self.tracksPath = self.baseDir / "Users" / self.user / "tracks.json"
+        self.playlistsPath = self.baseDir / "Users" / self.user / "playlists.json"
         self.progressPath = self.baseDir / "Users" / self.user / "progress.json"
         self.autoImportFolderPath = self.baseDir / ".." / "autoImport"
 
         self.fileLock = threading.RLock()
         self.entriesCache = None
         self.tracksCache = None
+        self.playlistsCache = None
 
         filterKeyword = os.environ.get("IMPORT_KEYWORD", None)
         print(f"auto import filtering by {filterKeyword}")
@@ -76,7 +78,7 @@ class Database:
             timestamp = item.get("played_at")
             msPlayed = item.get("ms_played", 0)
             if track:
-                self.appendTrackData(timestamp, track, msPlayed)
+                self.appendTrackData(timestamp, track, msPlayed, context=item.get("context", None))
 
     def _loadEntries(self) -> list:
         """Load ONLY id and info about time played from the JSON file."""
@@ -99,6 +101,25 @@ class Database:
         if self.tracksCache is None:
             self.tracksCache = self._loadJsonFile(self.tracksPath, {})
         return self.tracksCache
+
+    def _loadPlaylists(self) -> dict:
+        """Load playlist id to name mappings from the JSON file."""
+        if self.playlistsCache is None:
+            self.playlistsCache = self._loadJsonFile(self.playlistsPath, {"album": {}, "playlist": {}})
+        return self.playlistsCache
+
+    def _savePlaylists(self, playlists: dict):
+        """Save playlist id to name mappings to the JSON file."""
+        self.playlistsCache = playlists
+        self._save(self.playlistsPath, playlists)
+
+    def playlistName(self, playlistUri: str | None) -> str | None:
+        """Return the playlist name for a Spotify playlist URI or id, caching it on first lookup."""
+        if not playlistUri:
+            return None
+        type, playlistId = playlistUri.split(":", 1)
+        playlists = self._loadPlaylists()
+        return playlists[type].get(playlistId, None)
     
     def _addTrack(self, tracks, track):
         tracks[track["id"]] = track
@@ -116,9 +137,11 @@ class Database:
             "id": metadata["id"],
             "playedAt": metadata["playedAt"],
             "timePlayed": metadata["timePlayed"],
+            "playedFrom": metadata.get("playedFrom"),
         }
         metadata.pop("playedAt")
         metadata.pop("timePlayed")
+        metadata.pop("playedFrom", None)
         return entry, metadata
 
     def _paginateEntry(self, entry: dict, tracks: dict = None) -> dict:
@@ -137,6 +160,7 @@ class Database:
 
         meta["playedAt"] = entry["playedAt"]
         meta["timePlayed"] = entry["timePlayed"]
+        meta["playedFrom"] = entry.get("playedFrom", None)
 
         return meta
 
@@ -162,6 +186,22 @@ class Database:
         existingTracks = self._loadTracks()
         self._addTrack(existingTracks, track)          #< Add new track if missing, or update existing track metadata if already exists
         self._saveTracks(existingTracks)
+
+    def updatePlaylists(self, playlist):
+        if playlist is None:
+            return
+        existingPlaylists = self._loadPlaylists()
+        contextType, playlistId = playlist.split(":", 1)
+        if playlistId not in existingPlaylists[contextType]:
+            try:
+                if contextType == "album":
+                    existingPlaylists[contextType][playlistId] = self.listener.albumName(playlistId)
+                else:
+                    existingPlaylists[contextType][playlistId] = self.listener.playlistName(playlistId)
+            except Exception as e:
+                print(f"Error occurred while fetching playlist name for {playlistId} (probably due to playlist being private): {e}")
+                existingPlaylists[contextType][playlistId] = None
+            self._savePlaylists(existingPlaylists)
 
     def getHistory(self) -> int:
         history = self._loadEntries()
@@ -272,9 +312,10 @@ class Database:
         entry, track = self._splitEntryAndTrack(meta)
         self.appendEntries(entry)
         self.updateTracks(track)
+        self.updatePlaylists(entry.get("playedFrom", None))
 
-    def appendTrackData(self, timestamp, track, timePlayed):
-        self.appendMetadata(Client.formatTrack(track, timestamp, timePlayed))
+    def appendTrackData(self, timestamp, track, timePlayed, context=None):
+        self.appendMetadata(Client.formatTrack(track, timestamp, timePlayed, context=context))
 
     def resortDatabase(self):
         """ In case entries got out of order, this will sort them by playedAt timestamp. """

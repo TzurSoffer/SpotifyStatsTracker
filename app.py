@@ -106,6 +106,10 @@ class SpotifyDashboardApp:
             song["playedAtText"] = playedAt.strftime("%Y-%m-%d %H:%M")
             song["timePlayedText"] = msToString(song["timePlayed"])
 
+        song["contextName"] = None
+        if "playedFrom" in song:
+            song["contextName"] = self.database.playlistName(song["playedFrom"])
+
         artistsText = ", ".join(a.get("name", "") for a in song["artists"])
         releaseDateText = dateToString(song["album"]["releaseDate"])
         song["releaseDateText"] = releaseDateText

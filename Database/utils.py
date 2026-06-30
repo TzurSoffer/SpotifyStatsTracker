@@ -2,11 +2,11 @@ import os
 import sys
 import traceback
 import datetime
-
 from zoneinfo import ZoneInfo
 
 DATE_FORMATS = ("%Y-%m-%d", "%Y-%m", "%Y")
 
+## TIMEZONE SETUP
 try:
     tzName = os.environ.get("TZ")
     tz = datetime.datetime.now().astimezone().tzinfo
@@ -20,11 +20,10 @@ print("Using timezone:", tzName)
 
 
 ## ERROR PRINTING
-
 def parseError(e):
     _, _, excTb = sys.exc_info()
     summary = traceback.extract_tb(excTb)
-    
+
     if summary:
         lastFrame = summary[-1]
         fname = os.path.basename(lastFrame.filename)
@@ -33,19 +32,36 @@ def parseError(e):
         codeLine = lastFrame.line
 
         return f"{type(e).__name__} in {fname} -> {funcName}() at line {lineno}: '{codeLine}' -> Error: {e}"
-    
+
     return f"{type(e).__name__}: {e}"
 
 
 ## DATETIME RELATED
+def fromtimestamp(ts, tz=None):
+    """
+    Cross-platform safe timestamp conversion.
+    Windows cannot handle negative timestamps, so we manually offset from epoch.
+    """
+    if tz is None:
+        tz = datetime.timezone.utc
+
+    try:
+        # Works on Linux/macOS
+        return datetime.datetime.fromtimestamp(ts, tz=tz)
+    except (OSError, ValueError):
+        # Windows fallback for negative timestamps
+        epoch = datetime.datetime(1970, 1, 1, tzinfo=tz)
+        return epoch + datetime.timedelta(seconds=ts)
 
 def epoch():
-    return datetime.datetime.fromtimestamp(0, tz=tz)
+    return fromtimestamp(0, tz=tz)
 
 def parseIsoDatetime(value):
-    return datetime.datetime.fromisoformat(
-        str(value).replace("Z", "+00:00")
-    )
+    """
+    Handles ISO strings, including those ending with Z.
+    """
+    value = str(value).replace("Z", "+00:00")
+    return datetime.datetime.fromisoformat(value)
 
 def getTimezone():
     return tz
@@ -53,8 +69,9 @@ def getTimezone():
 def now():
     return datetime.datetime.now(tz=tz)
 
-
 def toTimezone(dt: datetime.datetime, tz=None):
+    if tz is None:
+        tz = getTimezone()
     if dt.tzinfo is None:
         return dt.replace(tzinfo=tz)
     return dt.astimezone(tz)
@@ -68,9 +85,7 @@ def startOfDay(dt: datetime.datetime = None):
 def parseDateString(dateText: str):
     for fmt in DATE_FORMATS:
         try:
-            return datetime.datetime.strptime(
-                str(dateText), fmt
-            ).replace(tzinfo=tz)
+            return datetime.datetime.strptime(str(dateText), fmt).replace(tzinfo=tz)
         except ValueError:
             pass
     return None
@@ -82,14 +97,20 @@ def parseDatetime(value):
         return parseDateString(value)
 
 def convertToDatetime(timestamp):
-    if type(timestamp) == datetime.datetime:
+    """
+    Converts:
+    - datetime → normalized
+    - numeric timestamp → safe conversion
+    - ISO string → parsed
+    - date-only string → parsed
+    - "0000-00-00" → epoch
+    - invalid → epoch
+    """
+    if isinstance(timestamp, datetime.datetime):
         return toTimezone(timestamp)
 
     try:
-        return datetime.datetime.fromtimestamp(
-            float(timestamp),
-            tz=tz
-        )
+        return fromtimestamp(float(timestamp), tz=tz)
     except (ValueError, TypeError):
         pass
 
@@ -101,15 +122,18 @@ def convertToDatetime(timestamp):
 
 def dateToString(timestamp):
     if type(timestamp) in (float, int):
-        timestamp = datetime.datetime.fromtimestamp(timestamp, tz=tz)
+        timestamp = fromtimestamp(timestamp, tz=tz)
     elif type(timestamp) != datetime.datetime:
         timestamp = convertToDatetime(timestamp)
 
     timestamp = toTimezone(timestamp)
-
     return timestamp.strftime("%Y-%m-%d")
 
 def timeToInt(timestampOrStr):
+    """
+    Converts datetime or string to integer timestamp.
+    Handles negative timestamps safely.
+    """
     if type(timestampOrStr) == datetime.datetime:
         return int(toTimezone(timestampOrStr).timestamp())
 
@@ -131,7 +155,7 @@ def msToString(ms: int | float) -> str:
     seconds = totalSeconds % 60
     minutes = (totalSeconds // 60) % 60
     hours = totalSeconds // 3600
-    
+
     parts = []
 
     if hours > 0:
@@ -140,7 +164,7 @@ def msToString(ms: int | float) -> str:
         parts.append(f"{minutes}m")
     if seconds > 0 or minutes > 0 or hours > 0:
         parts.append(f"{seconds}s")
-        
+
     return " ".join(parts)
 
 def formatDuration(ms: int) -> str:

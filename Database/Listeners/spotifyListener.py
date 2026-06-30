@@ -1,6 +1,7 @@
 import threading
 import time
 from SpotipyFree import Spotify
+from Database.utils import parseError
 
 class Listener:
     def __init__(self, cookiesFile, refreshInterval=6):
@@ -30,6 +31,11 @@ class Listener:
 
     def track(self, id):
         return self.sp.track(id)
+    
+    def playlistName(self, playlistId):
+        return self.sp.playlist(playlistId).get("name", "Unknown Playlist")
+    def albumName(self, albumId):
+        return self.sp.album(albumId).get("name", "Unknown Album")
 
     def startListener(self, callback):
         self.run = True
@@ -42,7 +48,7 @@ class Listener:
                     self.recentlyPlayed_Z1 = recentlyPlayed
                 time.sleep(1)
             except Exception as e:
-                print("Error in listener:", e)
+                print("Error in listener:", parseError(e))
                 time.sleep(30)
 
     def startListener_thread(self, callback):

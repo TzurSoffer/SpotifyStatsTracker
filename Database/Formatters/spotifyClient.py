@@ -41,11 +41,11 @@ class Client:
         playedAtTimestamp = timeToInt(timestamp)
         
         track["playedAt"] = playedAtTimestamp
-        track["timePlayed"] = min(timePlayed, track["duration"])   #< sometimes spotipyFree returns extremly large (wrong) values (I think it has to do with pause)
+        track["timePlayed"] = min(timePlayed, track["duration"])   #< sometimes spotipyFree returns extremely large (wrong) values (I think it has to do with pause)
         return track
     
     @staticmethod
-    def formatTrack(track, timestamp=-1, msPlayed=-1):
+    def formatTrack(track, timestamp=-1, msPlayed=-1, context=None):
         track = track or {}
         album = track.get("album") or {}
 
@@ -56,6 +56,15 @@ class Client:
 
         artists = Client._formatArtists(album)
         album = Client._formatAlbum(album)
+        
+        playedFrom = None
+        if context:
+            uri = context.get("uri", None)
+            if not uri:
+                return
+            uri = uri.removeprefix("spotify:").removeprefix("internal:recs:")
+            if uri.startswith("album") or uri.startswith("playlist"):
+                playedFrom = uri
 
         track = {
             "name": track.get("name", "Unknown Track"),
@@ -64,6 +73,7 @@ class Client:
             "url": track["external_urls"]["spotify"],
             "artists": artists,
             "album": album,
+            "playedFrom": playedFrom,
             "imageUrl": firstImage.get("url", ""),
             "imageId": album["id"],
             "duration": duration,
