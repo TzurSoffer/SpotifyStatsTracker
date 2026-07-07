@@ -93,10 +93,10 @@ class SpotifyDashboardApp:
     def _getPercentPlayedText(self, item, sortBy, totalPlays, totalMs):
         if sortBy == "plays":
             percent = round((item.get("plays", 0) / totalPlays * 100), 1) if totalPlays else 0
-            return f"{percent}% of all plays ({item.get('plays', 0)} plays)"
+            return f"{percent}% of all plays"
         elif sortBy == "totalTimeListened":
             percent =  round((item.get("totalTimeListened", 0) / totalMs * 100), 1) if totalMs else 0
-            return f"{percent}% of all time played ({msToString(item.get('totalTimeListened', 0))})"
+            return f"{percent}% of all time played"
         else:
             return ""
 
@@ -204,7 +204,7 @@ class SpotifyDashboardApp:
             return f"New this period", "change-positive"
 
         change = ((currentValue - previousValue) / previousValue) * 100
-        formatted = f"{abs(round(change, 1))}% {'better' if change > 0 else 'worse'} than the previous period"
+        formatted = f"{abs(round(change, 1))}% {'more' if change > 0 else 'less'} than the previous period"
         cssClass = "change-positive" if change > 0 else "change-negative"
         return formatted, cssClass
 
