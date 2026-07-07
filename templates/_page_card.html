@@ -1,4 +1,9 @@
 <section class="filter-section">
+<div class="filter-group filter-search">
+    <label for="searchQuery">Search:</label>
+    <input type="search" id="searchQuery" class="auto-search-focus" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search songs, artists, playlists" aria-label="Search the current page" oninput="scheduleSearchFilter('searchQuery', updateSearchFilter)" onkeydown="handleSearchKeydown(event, updateSearchFilter)">
+</div>
+
 <div class="filter-group">
     <label for="interval">Time Period:</label>
     <select id="interval" name="interval" onchange="updateIntervalFilter()">
@@ -47,24 +52,89 @@ function updateDateFilter() {
     const endDate = document.getElementById('endDate').value;
     
     if (startDate && endDate) {
-    const params = new URLSearchParams();
-    params.append('sortBy', document.getElementById('sortBy').value);
-    params.append('interval', 'custom');
-    params.append('startDate', startDate);
-    params.append('endDate', endDate);
+    const params = new URLSearchParams(window.location.search);
+    const searchQuery = document.getElementById('searchQuery').value;
+
+    if (searchQuery.trim()) {
+        params.set('q', searchQuery);
+    } else {
+        params.delete('q');
+    }
+
+    params.set('sortBy', document.getElementById('sortBy').value);
+    params.set('interval', 'custom');
+    params.set('startDate', startDate);
+    params.set('endDate', endDate);
+    params.delete('page');
     window.location = window.location.pathname + '?' + params.toString();
     }
+}
+
+function updateSearchFilter() {
+    const searchQuery = document.getElementById('searchQuery').value;
+    const params = new URLSearchParams(window.location.search);
+    const interval = document.getElementById('interval').value;
+
+    if (searchQuery.trim()) {
+        params.set('q', searchQuery);
+    } else {
+        params.delete('q');
+    }
+
+    params.set('sortBy', document.getElementById('sortBy').value);
+
+    if (interval && interval !== 'custom') {
+        params.set('interval', interval);
+        params.delete('startDate');
+        params.delete('endDate');
+    } else if (interval === 'custom') {
+        params.set('interval', 'custom');
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+
+        if (startDate && endDate) {
+            params.set('startDate', startDate);
+            params.set('endDate', endDate);
+        }
+    }
+
+    params.delete('page');
+    window.location = window.location.pathname + '?' + params.toString();
 }
 
 function updateFilters() {
     const sortBy = document.getElementById('sortBy').value;
     const interval = document.getElementById('interval').value;
     
-    const params = new URLSearchParams();
-    params.append('sortBy', sortBy);
-    if (interval && interval !== 'custom') {
-    params.append('interval', interval);
+    const params = new URLSearchParams(window.location.search);
+    const searchQuery = document.getElementById('searchQuery').value;
+
+    if (searchQuery.trim()) {
+        params.set('q', searchQuery);
+    } else {
+        params.delete('q');
     }
+
+    params.set('sortBy', sortBy);
+    if (interval && interval !== 'custom') {
+    params.set('interval', interval);
+    params.delete('startDate');
+    params.delete('endDate');
+    } else if (interval === 'custom') {
+    params.set('interval', 'custom');
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    if (startDate && endDate) {
+        params.set('startDate', startDate);
+        params.set('endDate', endDate);
+    }
+    } else {
+    params.delete('interval');
+    params.delete('startDate');
+    params.delete('endDate');
+    }
+    params.delete('page');
     window.location = window.location.pathname + '?' + params.toString();
 }
 </script>

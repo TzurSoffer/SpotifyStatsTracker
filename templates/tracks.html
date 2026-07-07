@@ -3,6 +3,21 @@
   <section class="hero">
     <div class="hero-content">
       <form class="filter-section dashboard-filter" method="get" action="/">
+        <div class="filter-group filter-search">
+          <label for="dashboardSearch">Search:</label>
+          <input
+            type="search"
+            id="dashboardSearch"
+            class="auto-search-focus"
+            name="q"
+            value="{{ request.args.get('q', '') }}"
+            placeholder="Search songs, artists, playlists"
+            aria-label="Search the current page"
+            oninput="scheduleSearchFilter('dashboardSearch', updateDashboardFilters)"
+            onkeydown="handleSearchKeydown(event, updateDashboardFilters)"
+          />
+        </div>
+
         <div class="filter-group">
           <label for="interval">Time Period:</label>
           <select id="interval" name="interval" onchange="updateDashboardInterval()">
@@ -71,7 +86,7 @@
   <section class="track-list">
     {% if tracks %}
       {% for track in tracks %}
-        {% set item_number = (startIndex | default(0)) + loop.index %}
+        {% set item_number = track.get('absoluteIndex') if track.get('absoluteIndex') else (startIndex | default(0)) + loop.index %}
         {% set section = 'dashboard' %}
         {% include '_track_card.html' %}
       {% endfor %}
@@ -115,7 +130,15 @@
 
     function updateDashboardFilters(forceCustom = false) {
       const interval = document.getElementById('interval').value;
+      const searchInput = document.getElementById('dashboardSearch');
       const params = new URLSearchParams(window.location.search);
+      const searchQuery = searchInput ? searchInput.value : '';
+
+      if (searchQuery.trim()) {
+        params.set('q', searchQuery);
+      } else {
+        params.delete('q');
+      }
 
       if (interval === 'custom' || forceCustom) {
         const startDate = document.getElementById('startDate').value;

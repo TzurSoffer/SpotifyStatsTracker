@@ -40,6 +40,8 @@ button {
   position: sticky;
   top: 0;
   z-index: 10;
+  gap: 12px 16px;
+  flex-wrap: wrap;
 }
 
 .brand {
@@ -50,6 +52,55 @@ button {
 .nav-links a {
   margin-left: 20px;
   color: var(--muted);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.nav-links a {
+  margin-left: 0;
+}
+
+.topbar-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  max-width: 100%;
+}
+
+.topbar-search input[type="search"] {
+  width: min(340px, 100%);
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font: inherit;
+}
+
+.topbar-search input[type="search"]::placeholder {
+  color: var(--muted);
+}
+
+.topbar-search input[type="search"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(251, 113, 123, 0.2);
+}
+
+.topbar-search button {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #111;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .page {
@@ -556,6 +607,34 @@ progress::-moz-progress-bar {
   gap: 10px;
 }
 
+.filter-search {
+  flex: 1 1 100%;
+  width: 100%;
+}
+
+.filter-search input[type="search"] {
+  flex: 1 1 320px;
+  min-width: 240px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+.filter-search input[type="search"]::placeholder {
+  color: var(--muted);
+}
+
+.filter-search input[type="search"]:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(251, 113, 123, 0.2);
+}
+
 .filter-group label {
   font-weight: 600;
   font-size: 0.95rem;
@@ -597,6 +676,16 @@ progress::-moz-progress-bar {
 }
 
 @media (max-width: 768px) {
+  .topbar-search {
+    width: 100%;
+    order: 3;
+  }
+
+  .topbar-search input[type="search"] {
+    flex: 1;
+    width: auto;
+  }
+
   .filter-section {
     flex-direction: column;
     align-items: stretch;
@@ -605,6 +694,11 @@ progress::-moz-progress-bar {
   .filter-group,
   .custom-dates {
     width: 100%;
+  }
+
+  .filter-search input[type="search"] {
+    width: 100%;
+    min-width: 0;
   }
 
   .filter-group select,

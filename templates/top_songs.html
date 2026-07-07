@@ -22,7 +22,7 @@
   <section id="track-list" class="track-list">
     {% if tracks %}
       {% for track in tracks %}
-        {% set item_number = (startIndex | default(0)) + loop.index %}
+        {% set item_number = track.get('absoluteIndex') if track.get('absoluteIndex') else (startIndex | default(0)) + loop.index %}
         {% set section = 'top_songs' %}
         {% include '_track_card.html' %}
       {% endfor %}
@@ -33,11 +33,11 @@
 
   <section class="pagination">
     {% if prevUrl %}
-      <a class="button" href="{{ prevUrl }}&sortBy={{ sortBy }}&interval={{ interval }}&startDate={{ customStart }}&endDate={{ customEnd }}">Previous</a>
+      <a class="button" href="{{ prevUrl }}">Previous</a>
     {% endif %}
     <span>Page {{ page }} of {{ totalPages }}</span>
     {% if nextUrl %}
-      <a class="button" href="{{ nextUrl }}&sortBy={{ sortBy }}&interval={{ interval }}&startDate={{ customStart }}&endDate={{ customEnd }}">Next</a>
+      <a class="button" href="{{ nextUrl }}">Next</a>
     {% endif %}
   </section>
 {% endblock %}

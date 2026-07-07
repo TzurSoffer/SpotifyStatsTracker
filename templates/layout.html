@@ -24,9 +24,10 @@
         <span id="version-badge-text"></span>
       </div>
       <nav class="nav-links">
-        <a href="/">Dashboard</a>
-        <a href="/top-songs">Top Songs</a>
-        <a href="/top-artists">Top Artists</a>
+        {% set currentQuery = request.args.get('q', '') %}
+        <a href="{{ url_for('dashboard', q=currentQuery) if currentQuery else url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('topSongsPage', q=currentQuery) if currentQuery else url_for('topSongsPage') }}">Top Songs</a>
+        <a href="{{ url_for('topArtistsPage', q=currentQuery) if currentQuery else url_for('topArtistsPage') }}">Top Artists</a>
         <a href="{{ url_for('importPage') }}">Import</a>
         <a href="/login">Logout</a>
       </nav>
@@ -34,6 +35,29 @@
 
     <main class="page">{% block content %}{% endblock %}</main>
     <script>
+      window.__searchDebounceTimers = window.__searchDebounceTimers || {};
+
+      window.scheduleSearchFilter = function(searchInputId, applyFilterFn, delayMs = 500) {
+        const searchInput = document.getElementById(searchInputId);
+        if (!searchInput) {
+          return;
+        }
+
+        window.clearTimeout(window.__searchDebounceTimers[searchInputId]);
+        window.__searchDebounceTimers[searchInputId] = window.setTimeout(() => {
+          applyFilterFn();
+        }, delayMs);
+      };
+
+      window.handleSearchKeydown = function(event, applyFilterFn) {
+        if (event.key !== 'Enter') {
+          return;
+        }
+
+        event.preventDefault();
+        applyFilterFn();
+      };
+
       (function(){
         const badge = document.getElementById('version-badge');
         const textEl = document.getElementById('version-badge-text');
@@ -55,6 +79,17 @@
         checkVersion();
         setInterval(checkVersion, 15 * 60 * 1000);
       })();
+
+      window.addEventListener('load', () => {
+        const searchInput = document.querySelector('.auto-search-focus');
+        if (!searchInput) {
+          return;
+        }
+
+        searchInput.focus();
+        const valueLength = searchInput.value.length;
+        searchInput.setSelectionRange(valueLength, valueLength);
+      });
     </script>
   </body>
 </html>

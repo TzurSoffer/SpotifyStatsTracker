@@ -1,14 +1,14 @@
 import time
 import requests
 
-def testResponseTime(count=5):
+def testResponseTime(count=5, url="http://127.0.0.1:5000/"):
     """
     Test the response time of the Spotify API by making multiple requests and measuring the time taken for each request.
     """
     responseTimes = 0.0
     for _ in range(count):
         start_time = time.time()
-        requests.get("http://127.0.0.1:5000/")
+        requests.get(url)
         responseTimes += time.time() - start_time
 
     averageResponseTime = responseTimes / count
@@ -22,4 +22,4 @@ if __name__ == "__main__":
 
     import pysole
     pysole.probe(runRemainingCode=True, printStartupCode=True, primaryPrompt="[SpotifyStats] ")
-    testResponseTime(10)
+    testResponseTime(50)

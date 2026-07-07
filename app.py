@@ -93,10 +93,10 @@ class SpotifyDashboardApp:
     def _getPercentPlayedText(self, item, sortBy, totalPlays, totalMs):
         if sortBy == "plays":
             percent = round((item.get("plays", 0) / totalPlays * 100), 1) if totalPlays else 0
-            return f"{percent}% of all plays"
+            return f"{percent}% of all plays ({item.get('plays', 0)} plays)"
         elif sortBy == "totalTimeListened":
             percent =  round((item.get("totalTimeListened", 0) / totalMs * 100), 1) if totalMs else 0
-            return f"{percent}% of all time played"
+            return f"{percent}% of all time played ({msToString(item.get('totalTimeListened', 0))})"
         else:
             return ""
 
@@ -139,13 +139,63 @@ class SpotifyDashboardApp:
     def _embedArtistsTextElements(self, songs, sortBy=None, totalPlays=0, totalMs=0) -> list[dict]:
         return [self._embedArtistTextElement(song, sortBy, totalPlays, totalMs) for song in songs]
 
-    def _getNeighboringUrls(self, name, page, totalPages):
-        prevUrl = url_for(name, page=page - 1) if page > 1 else None
-        nextUrl = url_for(name, page=page + 1) if page < totalPages else None
+    def _buildPageUrl(self, endpoint, page, **queryArgs):
+        cleanArgs = {key: value for key, value in queryArgs.items() if value not in (None, "")}
+        cleanArgs["page"] = page
+        return url_for(endpoint, **cleanArgs)
+
+    def _getNeighboringUrls(self, name, page, totalPages, **queryArgs):
+        prevUrl = self._buildPageUrl(name, page - 1, **queryArgs) if page > 1 else None
+        nextUrl = self._buildPageUrl(name, page + 1, **queryArgs) if page < totalPages else None
         return prevUrl, nextUrl
-    
+
+    def _normalizeSearchQuery(self, query: str | None) -> str:
+        return (query or "").strip().lower()
+
+    def _getSearchableText(self, item: dict) -> str:
+        parts = [
+            item.get("name", ""),
+            item.get("artistsText", ""),
+            item.get("artist", ""),
+            item.get("contextName", ""),
+            item.get("album", {}).get("name", "") if type(item.get("album")) == dict else "",
+        ]
+
+        artists = item.get("artists", [])
+        for artist in artists:
+            if type(artist) == dict:
+                parts.append(artist.get("name", ""))
+            else:
+                parts.append(str(artist))
+
+        playedFrom = item.get("playedFrom")
+        if playedFrom:
+            try:
+                parts.append(self.database.playlistName(playedFrom))
+            except:
+                pass
+
+        return " ".join(str(part) for part in parts if part)
+
+    def _filterBySearch(self, items, query):
+        normalizedQuery = self._normalizeSearchQuery(query)
+        if not normalizedQuery:
+            return items
+
+        filtered = []
+        for item in items:
+            searchableText = self._getSearchableText(item).lower()
+            if normalizedQuery in searchableText:
+                filtered.append(item)
+        return filtered
+
     def _getTotal(self, arr, key):
         return sum(i.get(key, 0) for i in arr)
+
+    def _embedIndices(self, items):
+        for index, item in enumerate(items, start=1):
+            item["absoluteIndex"] = index
+        return items
 
     def _getChangeText(self, currentValue, previousValue):
         if previousValue is None or previousValue == 0:
@@ -310,13 +360,18 @@ class SpotifyDashboardApp:
                 return redirect(url_for("login", next=request.path))
 
             page = int(request.args.get("page", 1) or 1)
+            searchQuery = request.args.get("q", "")
             customStart = request.args.get("startDate", "")
             customEnd = request.args.get("endDate", "")
             interval = request.args.get("interval", "day")
             if interval == "custom" and not (customStart and customEnd):
                 interval = "all time"
 
-            tracks, totalPages, startIndex = self.getPage(self.database.getEntriesFromNew(), page)
+            tracks = self.database.getEntriesFromNew()
+            if searchQuery:
+                self._embedIndices(tracks)
+            tracks = self._filterBySearch(tracks, searchQuery)
+            tracks, totalPages, startIndex = self.getPage(tracks, page)
             tracks = self._embedSongsTextElements(tracks)
 
             intervalLabel = self._getIntervalLabel(interval, customStart, customEnd)
@@ -331,7 +386,15 @@ class SpotifyDashboardApp:
             totalSongsChangeText, totalSongsChangeClass = self._getChangeText(stats["totalSongsPlayed"], stats["previousSongsPlayed"])
             totalListenChangeText, totalListenChangeClass = self._getChangeText(stats["totalDurationMs"], stats["previousDurationMs"])
 
-            prevUrl, nextUrl = self._getNeighboringUrls("dashboard", page, totalPages)
+            prevUrl, nextUrl = self._getNeighboringUrls(
+                "dashboard",
+                page,
+                totalPages,
+                q=searchQuery,
+                interval=interval,
+                startDate=customStart,
+                endDate=customEnd,
+            )
 
             return render_template(
                 "tracks.html",
@@ -363,6 +426,7 @@ class SpotifyDashboardApp:
                 return redirect(url_for("login", next=request.path))
 
             page = int(request.args.get("page", 1) or 1)
+            searchQuery = request.args.get("q", "")
             sortBy = request.args.get("sortBy", "totalTimeListened")
             interval = request.args.get("interval", "")
             customStart = request.args.get("startDate", "")
@@ -370,10 +434,22 @@ class SpotifyDashboardApp:
             
             startDate, endDate = self._getDateRange(interval, customStart, customEnd, default="all time")
             rawTopSongs = self.database.getTopSongs(startDate=startDate, endDate=endDate, by=sortBy)
-            tracks, totalPages, startIndex = self.getPage(rawTopSongs, page)
+            if searchQuery:
+                self._embedIndices(rawTopSongs)
+            tracks = self._filterBySearch(rawTopSongs, searchQuery)
+            tracks, totalPages, startIndex = self.getPage(tracks, page)
             totalPlays = self._getTotal(rawTopSongs, "plays")
             totalMs = self._getTotal(rawTopSongs, "totalTimeListened")
-            prevUrl, nextUrl = self._getNeighboringUrls("topSongsPage", page, totalPages)
+            prevUrl, nextUrl = self._getNeighboringUrls(
+                "topSongsPage",
+                page,
+                totalPages,
+                q=searchQuery,
+                sortBy=sortBy,
+                interval=interval,
+                startDate=customStart,
+                endDate=customEnd,
+            )
 
             tracks = self._embedSongsTextElements(tracks)
             tracks = self._embedTopSongsTextElements(tracks, sortBy=sortBy, totalPlays=totalPlays, totalMs=totalMs)
@@ -402,6 +478,7 @@ class SpotifyDashboardApp:
                 return redirect(url_for("login", next=request.path))
 
             page = int(request.args.get("page", 1) or 1)
+            searchQuery = request.args.get("q", "")
             sortBy = request.args.get("sortBy", "totalTimeListened")
             interval = request.args.get("interval", "")
             customStart = request.args.get("startDate", "")
@@ -409,13 +486,25 @@ class SpotifyDashboardApp:
             
             startDate, endDate = self._getDateRange(interval, customStart, customEnd, default="all time")
             rawTopArtists = self.database.getTopArtists(startDate=startDate, endDate=endDate, by=sortBy) or []
-            artists, totalPages, startIndex = self.getPage(rawTopArtists, page)
+            if searchQuery:
+                self._embedIndices(rawTopArtists)
+            tracks = self._filterBySearch(rawTopArtists, searchQuery)
+            artists, totalPages, startIndex = self.getPage(tracks, page)
             totalPlays = self._getTotal(rawTopArtists, "plays")
             totalUnique = self._getTotal(rawTopArtists, "uniqueSongCount")
             totalMs = self._getTotal(rawTopArtists, "totalTimeListened")
 
             artists = self._embedArtistsTextElements(artists, sortBy=sortBy, totalPlays=totalPlays, totalMs=totalMs)
-            prevUrl, nextUrl = self._getNeighboringUrls("topArtistsPage", page, totalPages)
+            prevUrl, nextUrl = self._getNeighboringUrls(
+                "topArtistsPage",
+                page,
+                totalPages,
+                q=searchQuery,
+                sortBy=sortBy,
+                interval=interval,
+                startDate=customStart,
+                endDate=customEnd,
+            )
 
             return render_template(
                 "top_artists.html",
