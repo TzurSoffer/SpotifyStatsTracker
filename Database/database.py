@@ -2,6 +2,7 @@ from __future__ import annotations
 import datetime
 import copy
 import os
+import re
 import threading
 import json
 from pathlib import Path
@@ -50,6 +51,7 @@ class Database:
         self._imageIdsLock = threading.RLock()
         self._downloadedTrackImages = None
         self._downloadedArtistImages = None
+        self._artistImageLazyFetchAttempted = set()
         self._imageDownloadExecutor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
 
         filterKeyword = os.environ.get("IMPORT_KEYWORD", None)
@@ -336,7 +338,38 @@ class Database:
 
     def saveArtistImg(self, url: str, imgId: str):
         self._saveImg(self.imgDir_artists, url, imgId, isTrack=False)
-    
+
+    def lazyFetchArtistImage(self, artistId: str, imagePath: Path) -> bool:
+        """Best-effort synchronous fetch of an artist's image scraped from their public
+        Spotify page, used as a fallback for artists we never received image metadata
+        for from the API. Deduplicated per artist id (via the same lock used by the
+        rest of the image pipeline) so repeated requests for a still-missing image
+        don't keep re-hitting Spotify. Returns True if the image exists on disk after
+        this call, whether freshly fetched or already cached.
+        """
+        if imagePath.exists():
+            return True
+        if not artistId:
+            return False
+
+        with self._imageIdsLock:
+            if artistId in self._artistImageLazyFetchAttempted:
+                return imagePath.exists()
+            self._artistImageLazyFetchAttempted.add(artistId)
+
+        try:
+            res = requests.get(f"https://open.spotify.com/artist/{artistId}", timeout=5)
+            match = re.search(r'<meta property="og:image" content="([^"]+)"', res.text)
+            if not match:
+                return False
+            imgData = requests.get(match.group(1), timeout=5).content
+            imagePath.parent.mkdir(parents=True, exist_ok=True)
+            imagePath.write_bytes(imgData)
+            return True
+        except Exception as e:
+            print(f"Failed to lazy load artist image for {artistId}: {parseError(e)}")
+            return False
+
     def saveImagesFromTrack(self, track: dict):
         self.saveTrackImg(track["imageUrl"], track["imageId"])
 
