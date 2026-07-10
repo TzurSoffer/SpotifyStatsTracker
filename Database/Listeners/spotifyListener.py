@@ -1,13 +1,36 @@
+import signal
 import threading
 import time
+from contextlib import contextmanager
 from SpotipyFree import Spotify
 from Database.utils import parseError
+
+
+@contextmanager
+def _suppress_signal_in_thread():
+    """Temporarily patch signal.signal to skip SIGINT registration when called
+    from a non-main thread (e.g. Flask worker threads). The spotapi library
+    unconditionally registers a SIGINT handler in its __init__, which raises
+    ValueError on non-main threads."""
+    original = signal.signal
+    if threading.current_thread() is not threading.main_thread():
+        def _patched(signalnum, handler):
+            if signalnum == signal.SIGINT:
+                return signal.getsignal(signalnum)
+            return original(signalnum, handler)
+        signal.signal = _patched
+    try:
+        yield
+    finally:
+        signal.signal = original
+
 
 class Listener:
     def __init__(self, cookiesFile, refreshInterval=6, email=None):
         self.run = False
-        self.sp = Spotify(cookiesFile=cookiesFile, email=email)
-        self.sp.startRecentlyPlayedListener(refreshInterval=refreshInterval)
+        with _suppress_signal_in_thread():
+            self.sp = Spotify(cookiesFile=cookiesFile, email=email)
+            self.sp.startRecentlyPlayedListener(refreshInterval=refreshInterval)
         self.recentlyPlayed_Z1 = self.sp.current_user_recently_played()
 
     def isLoggedIn(self):
