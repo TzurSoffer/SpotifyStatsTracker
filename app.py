@@ -10,7 +10,7 @@ from flask import Flask, render_template, redirect, request, url_for, jsonify, s
 
 from Database.database import Database
 from Database.Migrators.migrate import migrateIfNeeded
-from Database.utils import msToString, convertToDatetime, formatDuration, dateToString, versionTuple, now, startOfDay, parseDateString
+from Database.utils import msToString, convertToDatetime, formatDuration, dateToString, versionTuple, now, parseDateString
 from SpotipyFree import saveSession, parseCookieString
 
 class SpotifyDashboardApp:
