@@ -26,6 +26,15 @@ class Importer:
         # track = self.sp.track(track["external_urls"]["spotify"])
         return track
 
+    def _fetchTrackMeta(self, name, artist, trackUri):
+        """ Fetch raw track metadata by URI, falling back to a name/artist search. """
+        if trackUri:
+            try:
+                return self.sp.track(trackUri)
+            except Exception:
+                return self._searchForSong(name=name, artist=artist)
+        return self._searchForSong(name=name, artist=artist)
+
     def _convertToList(self, export):
         if export.lstrip().startswith("FILE_PATH,"):
             return export.splitlines()[1:], "musicoletPremium"
@@ -68,7 +77,8 @@ class Importer:
             try:
                 name, artist, startTimestamp, timePlayed, trackUri = dataFunction(item)
                 parsedItems.append((name, artist, startTimestamp, timePlayed, trackUri))
-            except Exception:
+            except Exception as e:
+                print(f"Error parsing item: {parseError(e)}")
                 continue
         return parsedItems
 
@@ -95,13 +105,7 @@ class Importer:
             name, artist, trackUri = info
             meta = None
             try:
-                if trackUri:
-                    try:
-                        meta = self.sp.track(trackUri)
-                    except Exception:
-                        meta = self._searchForSong(name=name, artist=artist)
-                else:
-                    meta = self._searchForSong(name=name, artist=artist)
+                meta = self._fetchTrackMeta(name, artist, trackUri)
             except Exception as e:
                 print(f"Error fetching {name} by {artist}: {parseError(e)}")
             return key, meta
@@ -148,15 +152,8 @@ class Importer:
             else:
                 if not name or not artist:
                     return None
-                
-                if trackUri:
-                    try:
-                        meta = self.sp.track(trackUri)
-                    except Exception:
-                        meta = self._searchForSong(name=name, artist=artist)
-                else:
-                    meta = self._searchForSong(name=name, artist=artist)
-                    
+
+                meta = self._fetchTrackMeta(name, artist, trackUri)
                 base = Client.formatTrack(meta, embedPlaybackInfo=False)
                 known[base["id"]] = base
                 if idKey:
