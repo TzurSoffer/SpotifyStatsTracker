@@ -204,7 +204,7 @@ class Importer:
         
         yield from self._import(dataFunction, history, known, progress_callback)
 
-    def importMusicoletCSVExport(self, rows, known=[]):
+    def importMusicoletCSVExport(self, rows, known=[], progress_callback=None):
         def expand(rows):
             ### Data formatted in: FILE_PATH,TITLE,ARTIST,ALBUM,ALBUM_ARTIST,COMPOSER,GENRE,YEAR,DURATION_MS,PLAY_COUNT
             NAME = 1

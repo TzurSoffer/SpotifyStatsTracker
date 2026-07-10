@@ -6,7 +6,7 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./Database:/app/Database/Users
+      - ./Database/Users:/app/Database/Users
       - ./secrets:/app/secrets
       - ./autoImport:/app/autoImport  #< files put in this folder will be imported automatically
     environment:
