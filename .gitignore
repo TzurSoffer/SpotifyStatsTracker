@@ -12,6 +12,7 @@ instance/
 Streaming*.json
 secrets.json
 cookies*.json
+flask_secret_key.txt
 Database/Users/*/img/tracks/*
 Database/Users/*/img/artists/*
 tmp/

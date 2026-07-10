@@ -1,5 +1,6 @@
 import os
 import json
+import secrets
 import threading
 import requests
 from pathlib import Path
@@ -17,9 +18,9 @@ class SpotifyDashboardApp:
     def __init__(self):
         migrateIfNeeded()
         self.app = Flask(__name__)
-        self.app.secret_key = os.environ.get("FLASK_SECRET_KEY", "spotify-stats-tracker-secret")
-        self.app.permanent_session_lifetime = timedelta(days=30)
         self.baseDir = Path(__file__).resolve().parent
+        self.app.secret_key = self._get_or_create_secret_key()
+        self.app.permanent_session_lifetime = timedelta(days=30)
         self.cookiesFile = self.baseDir / "secrets" / "cookies.json"
         
         self.user_databases = {}
@@ -35,6 +36,25 @@ class SpotifyDashboardApp:
         self.checkLogin_thread()
 
         self.registerRoutes()
+
+    def _get_or_create_secret_key(self):
+        """Resolve the Flask session-signing key. Prefers FLASK_SECRET_KEY, otherwise
+        persists a random key under secrets/ so sessions can't be forged using the
+        publicly-known default that used to ship in this repo."""
+        envKey = os.environ.get("FLASK_SECRET_KEY")
+        if envKey:
+            return envKey
+
+        keyFile = self.baseDir / "secrets" / "flask_secret_key.txt"
+        if keyFile.exists():
+            existingKey = keyFile.read_text(encoding="utf-8").strip()
+            if existingKey:
+                return existingKey
+
+        newKey = secrets.token_hex(32)
+        keyFile.parent.mkdir(parents=True, exist_ok=True)
+        keyFile.write_text(newKey, encoding="utf-8")
+        return newKey
 
     def get_username_for_email(self, email):
         map_file = self.baseDir / "secrets" / "users_map.json"
@@ -454,13 +474,24 @@ class SpotifyDashboardApp:
             g.db = db
             return email, username, db
 
+        def _authorized_image_username():
+            """Returns the username the current session is allowed to view images for, or None."""
+            email = session.get("email")
+            if not email or not self.is_user_logged_in(email):
+                return None
+            return self.get_username_for_email(email)
+
         @self.app.route('/img/<username>/tracks/<filename>')
         def serveTrackImage(username, filename):
+            if username != _authorized_image_username() or filename != os.path.basename(filename):
+                return "", 404
             imageDir = os.path.join(self.baseDir, "Database", "Users", username, "img", "tracks")
             return send_from_directory(imageDir, filename)
 
         @self.app.route('/img/<username>/artists/<filename>')
         def serveArtistImage(username, filename):
+            if username != _authorized_image_username() or filename != os.path.basename(filename):
+                return "", 404
             imageDir = os.path.join(self.baseDir, "Database", "Users", username, "img", "artists")
             return send_from_directory(imageDir, filename)
 

@@ -112,5 +112,92 @@ class TestMultiUser(unittest.TestCase):
             # Legacy directory should be removed/cleaned up
             self.assertFalse(legacy_dir.exists())
 
+    def test_get_or_create_secret_key_persists_random_value(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dash = SpotifyDashboardApp.__new__(SpotifyDashboardApp)
+            dash.baseDir = Path(tmpdir)
+
+            with patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("FLASK_SECRET_KEY", None)
+                key1 = dash._get_or_create_secret_key()
+                key2 = dash._get_or_create_secret_key()
+
+            self.assertEqual(key1, key2)
+            self.assertNotEqual(key1, "spotify-stats-tracker-secret")
+            self.assertGreaterEqual(len(key1), 32)
+
+    def test_get_or_create_secret_key_prefers_env_var(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dash = SpotifyDashboardApp.__new__(SpotifyDashboardApp)
+            dash.baseDir = Path(tmpdir)
+
+            with patch.dict(os.environ, {"FLASK_SECRET_KEY": "my-env-secret"}):
+                key = dash._get_or_create_secret_key()
+
+            self.assertEqual(key, "my-env-secret")
+
+
+class TestImageRouteAuthorization(unittest.TestCase):
+    @patch('app.SpotifyDashboardApp.startVersionCheck_thread')
+    @patch('app.SpotifyDashboardApp.checkLogin_thread')
+    @patch('app.migrateIfNeeded')
+    @patch('app.Path.exists')
+    def _makeApp(self, mock_exists, mock_migrate, mock_check, mock_version):
+        mock_exists.return_value = False
+        return SpotifyDashboardApp()
+
+    def test_serve_track_image_denies_mismatched_user(self):
+        dash = self._makeApp()
+        client = dash.app.test_client()
+        with patch.object(dash, 'is_user_logged_in', return_value=True), \
+             patch.object(dash, 'get_username_for_email', return_value='alice'):
+            with client.session_transaction() as sess:
+                sess['email'] = 'alice@example.com'
+            resp = client.get('/img/bob/tracks/1.jpeg')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_serve_track_image_denies_unauthenticated(self):
+        dash = self._makeApp()
+        client = dash.app.test_client()
+        with patch.object(dash, 'is_user_logged_in', return_value=False):
+            resp = client.get('/img/alice/tracks/1.jpeg')
+        self.assertEqual(resp.status_code, 404)
+
+    @patch('app.send_from_directory')
+    def test_serve_track_image_allows_matching_user(self, mock_send):
+        mock_send.return_value = "OK"
+        dash = self._makeApp()
+        client = dash.app.test_client()
+        with patch.object(dash, 'is_user_logged_in', return_value=True), \
+             patch.object(dash, 'get_username_for_email', return_value='alice'):
+            with client.session_transaction() as sess:
+                sess['email'] = 'alice@example.com'
+            resp = client.get('/img/alice/tracks/1.jpeg')
+        self.assertEqual(resp.status_code, 200)
+        mock_send.assert_called_once()
+
+    def test_serve_artist_image_denies_mismatched_user(self):
+        dash = self._makeApp()
+        client = dash.app.test_client()
+        with patch.object(dash, 'is_user_logged_in', return_value=True), \
+             patch.object(dash, 'get_username_for_email', return_value='alice'):
+            with client.session_transaction() as sess:
+                sess['email'] = 'alice@example.com'
+            resp = client.get('/img/bob/artists/1.jpeg')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_serve_image_rejects_path_traversal_filename(self):
+        dash = self._makeApp()
+        client = dash.app.test_client()
+        with patch.object(dash, 'is_user_logged_in', return_value=True), \
+             patch.object(dash, 'get_username_for_email', return_value='alice'):
+            with client.session_transaction() as sess:
+                sess['email'] = 'alice@example.com'
+            resp = client.get('/img/alice/tracks/..%5C..%5Csecret.txt')
+        self.assertEqual(resp.status_code, 404)
+
+
 if __name__ == '__main__':
     unittest.main()
