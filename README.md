@@ -85,7 +85,7 @@ http://127.0.0.1:5000
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the `Soffer Non-Commercial Source-Available License v1.0` - see the LICENSE file for details.
 
 ## Support
 
