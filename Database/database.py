@@ -135,10 +135,7 @@ class Database:
     def _saveNewTrackFromId(self, id, tracks=None, deferSave=False):
         if tracks == None:
             tracks = self._loadTracks()
-        track = Client.formatTrack(self.listener.track(id))
-        track.pop("playedAt", None)
-        track.pop("timePlayed", None)
-        track.pop("playedFrom", None)
+        track = Client.formatTrack(self.listener.track(id), embedPlaybackInfo=False)
         tracks = self._addTrack(tracks, track)
         if not deferSave:
             self._saveTracks(tracks)
