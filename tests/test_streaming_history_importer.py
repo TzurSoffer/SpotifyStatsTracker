@@ -45,26 +45,26 @@ class TestMusicoletImport(unittest.TestCase):
         return importer
 
     def test_import_history_dispatches_musicolet_without_error(self):
-        """importHistory() must accept a progress_callback for every export type,
+        """importHistory() must accept a progressCallback for every export type,
         including musicoletPremium, without raising a TypeError."""
         importer = self._mockedImporter()
         parsedHistory, exportType = importer._convertToList(MUSICOLET_CSV)
         self.assertEqual(exportType, "musicoletPremium")
 
-        progress_calls = []
+        progressCalls = []
 
-        def progress_callback(status, current, total, message):
-            progress_calls.append((status, current, total, message))
+        def progressCallback(status, current, total, message):
+            progressCalls.append((status, current, total, message))
 
-        result = importer.importHistory(parsedHistory, known=[], exportType=exportType, progress_callback=progress_callback)
+        result = importer.importHistory(parsedHistory, known=[], exportType=exportType, progressCallback=progressCallback)
         tracks = list(result)
 
         self.assertEqual(len(tracks), 1)
         self.assertEqual(tracks[0]["name"], "Song One")
 
-    def test_import_musicolet_csv_export_accepts_progress_callback_directly(self):
+    def test_import_musicolet_csv_export_accepts_progressCallback_directly(self):
         importer = self._mockedImporter()
-        gen = importer.importMusicoletCSVExport(MUSICOLET_CSV.splitlines()[1:], known=[], progress_callback=lambda *a: None)
+        gen = importer.importMusicoletCSVExport(MUSICOLET_CSV.splitlines()[1:], known=[], progressCallback=lambda *a: None)
         tracks = list(gen)
         self.assertEqual(len(tracks), 1)
 

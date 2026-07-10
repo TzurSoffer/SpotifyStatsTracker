@@ -43,15 +43,15 @@ class Importer:
     def getLengthOfImport(self, export):
         return len(self._convertToList(export)[0])
 
-    def importHistory(self, parsedHistory, known, exportType, progress_callback=None):
+    def importHistory(self, parsedHistory, known, exportType, progressCallback=None):
         if len(parsedHistory) == 0:
             return []
         if exportType == "spotifyAcountExport":
-            return self.importAcountHistory(parsedHistory, known=known, progress_callback=progress_callback)
+            return self.importAcountHistory(parsedHistory, known=known, progressCallback=progressCallback)
         if exportType == "spotifyExtendedExport":
-                return self.importExtendedHistory(parsedHistory, known=known, progress_callback=progress_callback)
+                return self.importExtendedHistory(parsedHistory, known=known, progressCallback=progressCallback)
         if exportType == "musicoletPremium":
-            return self.importMusicoletCSVExport(parsedHistory, known=known, progress_callback=progress_callback)
+            return self.importMusicoletCSVExport(parsedHistory, known=known, progressCallback=progressCallback)
         return []
 
     def buildKnownIndex(self, knownTrack):
@@ -170,7 +170,7 @@ class Importer:
             print(f"Error processing item: {parseError(e)}")
             return None
         
-    def _import(self, dataFunction, history, known=[], progress_callback=None):
+    def _import(self, dataFunction, history, known=[], progressCallback=None):
         known = self.buildKnownIndex(known)
         
         parsedItems = self._parseHistory(dataFunction, history)
@@ -190,7 +190,7 @@ class Importer:
                     chunkStart, 
                     totalItems, 
                     known, 
-                    progress_callback
+                    progressCallback
                 )
             
             # Yield items from the current chunk (fully in-memory now)
@@ -199,7 +199,7 @@ class Importer:
                 if meta:
                     yield meta
 
-    def importAcountHistory(self, history, known=[], progress_callback=None):
+    def importAcountHistory(self, history, known=[], progressCallback=None):
         def dataFunction(item):
             endTimestamp = timeToInt(item["endTime"])
             timePlayed = item["msPlayed"]
@@ -209,9 +209,9 @@ class Importer:
             artist=item["artistName"]
             return name, artist, startTimestamp, timePlayed, None
         
-        yield from self._import(dataFunction, history, known, progress_callback)
+        yield from self._import(dataFunction, history, known, progressCallback)
 
-    def importExtendedHistory(self, history, known=[], progress_callback=None):
+    def importExtendedHistory(self, history, known=[], progressCallback=None):
         def dataFunction(item):
             ts = item["ts"]
             endTimestamp = timeToInt(ts)
@@ -224,9 +224,9 @@ class Importer:
             trackUri = uri.split(":")[-1] if uri else None
             return name, artist, startTimestamp, timePlayed, trackUri
         
-        yield from self._import(dataFunction, history, known, progress_callback)
+        yield from self._import(dataFunction, history, known, progressCallback)
 
-    def importMusicoletCSVExport(self, rows, known=[], progress_callback=None):
+    def importMusicoletCSVExport(self, rows, known=[], progressCallback=None):
         def expand(rows):
             ### Data formatted in: FILE_PATH,TITLE,ARTIST,ALBUM,ALBUM_ARTIST,COMPOSER,GENRE,YEAR,DURATION_MS,PLAY_COUNT
             NAME = 1
@@ -267,4 +267,4 @@ class Importer:
             name, mainArtist, startTimestamp, timePlayed = item
             return name, mainArtist, startTimestamp, timePlayed, None
 
-        yield from self._import(dataFunction, expand(rows), known, progress_callback)
+        yield from self._import(dataFunction, expand(rows), known, progressCallback)

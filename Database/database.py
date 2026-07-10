@@ -370,12 +370,12 @@ class Database:
         total = len(parsedHistory)
         self.writeProgress("running", 0, total, "Starting import")
 
-        def progress_callback(status, current, total_steps, message):
-            self.writeProgress(status, current, total_steps, message)
+        def progressCallback(status, current, totalSteps, message):
+            self.writeProgress(status, current, totalSteps, message)
 
         index = 0
         try:
-            for index, meta in enumerate(importer.importHistory(parsedHistory, self._loadTracks().values(), exportType, progress_callback=progress_callback), start=1):  #< We only want the tracks, the importer doesn't care about the keys
+            for index, meta in enumerate(importer.importHistory(parsedHistory, self._loadTracks().values(), exportType, progressCallback=progressCallback), start=1):  #< We only want the tracks, the importer doesn't care about the keys
                 e, t = self._splitEntryAndTrack(meta)
                 entries.append(e)
                 tracks = self._addTrack(tracks, t)
