@@ -25,8 +25,10 @@ except ModuleNotFoundError:
     from utils import parseError, convertToDatetime
 
 class Database:
-    def __init__(self, user: str = "Tzur"):
+    def __init__(self, user: str = "Tzur", cookiesFile: str | None = None, email: str | None = None):
         self.user = user
+        self.cookiesFile = cookiesFile
+        self.email = email
         self.listener = None
         self.baseDir = Path(__file__).resolve().parent
 
@@ -361,7 +363,7 @@ class Database:
     def importHistory(self, exportedHistory):
         entries = self._loadEntries()
         tracks = self._loadTracks()
-        importer = Importer()
+        importer = Importer(cookiesFile=self.cookiesFile, email=self.email)
         
         parsedHistory, exportType = importer._convertToList(exportedHistory)
         if not parsedHistory:
@@ -537,7 +539,11 @@ class Database:
         return self._sortTopStats(artists, compKeys, by)
 
     def startListener(self, cookiesFile, email=None):
-        self.listener = Listener(cookiesFile, email=email)
+        if cookiesFile:
+            self.cookiesFile = cookiesFile
+        if email:
+            self.email = email
+        self.listener = Listener(self.cookiesFile, email=self.email)
         self.listener.startListener_thread(callback=self._addToDatabaseFromListener)
 
     def startAutoImporter(self):

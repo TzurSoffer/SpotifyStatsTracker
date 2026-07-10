@@ -79,6 +79,66 @@ class TestPatches(unittest.TestCase):
         # Verify keep alive thread was restarted
         mock_thread.is_alive.assert_called_once()
 
+    def test_spotify_init_saves_email(self):
+        """SpotipyFree.Spotify should store email on init."""
+        import SpotipyFree
+        
+        # Test with kwarg
+        sp1 = SpotipyFree.Spotify(email="user@test.com")
+        self.assertEqual(sp1.email, "user@test.com")
+        
+        # Test with positional arg
+        sp2 = SpotipyFree.Spotify(False, False, "dummy.json", "positional@test.com")
+        self.assertEqual(sp2.email, "positional@test.com")
+
+    @patch("spotapi.Login.from_saver")
+    @patch("builtins.open")
+    def test_spotify_login_retrieves_correct_session(self, mock_open, mock_from_saver):
+        """SpotipyFree.Spotify.login should select the session matching self.email."""
+        import SpotipyFree
+        
+        # Mock file content
+        import json
+        mock_file_data = json.dumps([
+            {"identifier": "user1@test.com", "cookies": {}},
+            {"identifier": "user2@test.com", "cookies": {}}
+        ])
+        
+        mock_open.return_value.__enter__.return_value.read.return_value = mock_file_data
+        
+        sp = SpotipyFree.Spotify(cookiesFile="cookies.json", email="user2@test.com")
+        
+        # SpotipyFree.Spotify init might call login internally. Let's force it again to test.
+        sp.login("cookies.json")
+        
+        # The from_saver call should have been called with identifier="user2@test.com"
+        mock_from_saver.assert_called_with(unittest.mock.ANY, unittest.mock.ANY, "user2@test.com")
+
+    @patch("spotapi.Login.from_saver")
+    @patch("builtins.open")
+    def test_spotify_login_fallback_to_first_session(self, mock_open, mock_from_saver):
+        """SpotipyFree.Spotify.login should fallback to first session if email is not found."""
+        import SpotipyFree
+        import json
+        
+        mock_file_data = json.dumps([
+            {"identifier": "user1@test.com", "cookies": {}},
+            {"identifier": "user2@test.com", "cookies": {}}
+        ])
+        
+        mock_open.return_value.__enter__.return_value.read.return_value = mock_file_data
+        
+        # With email not in sessions list
+        sp = SpotipyFree.Spotify(cookiesFile="cookies.json", email="unknown@test.com")
+        sp.login("cookies.json")
+        mock_from_saver.assert_called_with(unittest.mock.ANY, unittest.mock.ANY, "user1@test.com")
+        
+        # With no email
+        sp_no_email = SpotipyFree.Spotify(cookiesFile="cookies.json")
+        sp_no_email.login("cookies.json")
+        mock_from_saver.assert_called_with(unittest.mock.ANY, unittest.mock.ANY, "user1@test.com")
+
 
 if __name__ == "__main__":
     unittest.main()
+

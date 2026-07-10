@@ -7,11 +7,24 @@ from pathlib import Path
 # Ensure we can import app.py
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# Backup original modules before we mock them
+_original_modules = {}
+for m in ["Database.database", "Database.Migrators.migrate", "Database.utils"]:
+    if m in sys.modules:
+        _original_modules[m] = sys.modules[m]
+
 # Mock database imports to avoid side effects
 sys.modules["Database.database"] = MagicMock()
 sys.modules["Database.Migrators.migrate"] = MagicMock()
 sys.modules["Database.utils"] = MagicMock()
-sys.modules["SpotipyFree"] = MagicMock()
+
+def tearDownModule():
+    # Restore original modules so we don't pollute other tests
+    for m in ["Database.database", "Database.Migrators.migrate", "Database.utils"]:
+        if m in _original_modules:
+            sys.modules[m] = _original_modules[m]
+        elif m in sys.modules:
+            del sys.modules[m]
 
 from app import SpotifyDashboardApp
 
