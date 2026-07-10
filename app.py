@@ -379,23 +379,13 @@ class SpotifyDashboardApp:
         def serveArtistImage(username, filename):
             imageDir = os.path.join(self.baseDir, "Database", "Users", username, "img", "artists")
             imagePath = os.path.join(imageDir, filename)
-            
+
             if not os.path.exists(imagePath):
-                artist_id = filename.split('.')[0]
-                if artist_id:
-                    try:
-                        import requests, re
-                        res = requests.get(f"https://open.spotify.com/artist/{artist_id}", timeout=5)
-                        match = re.search(r'<meta property="og:image" content="([^"]+)"', res.text)
-                        if match:
-                            img_url = match.group(1)
-                            img_data = requests.get(img_url, timeout=5).content
-                            os.makedirs(imageDir, exist_ok=True)
-                            with open(imagePath, 'wb') as f:
-                                f.write(img_data)
-                    except Exception as e:
-                        print(f"Failed to lazy load artist image for {artist_id}: {e}")
-            
+                artistId = filename.split('.')[0]
+                db = self.user_databases.get(username)
+                if db:
+                    db.lazyFetchArtistImage(artistId, Path(imagePath))
+
             return send_from_directory(imageDir, filename)
 
         @self.app.route("/import-history", methods=["POST"])
