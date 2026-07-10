@@ -23,6 +23,8 @@ except ModuleNotFoundError:
     from utils import parseError, convertToDatetime
 
 class Database:
+    PROGRESS_UPDATE_INTERVAL = 10   #< Write import progress to disk every N entries instead of every entry
+
     def __init__(self, user: str = "Tzur"):
         self.user = user
         self.listener = None
@@ -128,7 +130,7 @@ class Database:
     def _saveNewTrackFromId(self, id, tracks=None):
         if tracks == None:
             tracks = self._loadTracks()
-        track = Client.formatTrack(self.listener.track(id))
+        track = Client.formatTrack(self.listener.track(id), embedPlaybackInfo=False)
         tracks = self._addTrack(tracks, track)
         self._saveTracks(tracks)
 
@@ -331,17 +333,25 @@ class Database:
         entries = self._loadEntries()
         tracks = self._loadTracks()
         importer = Importer()
-        total = importer.getLengthOfImport(exportedHistory)
+
+        parsedHistory, exportType = importer._convertToList(exportedHistory)
+        if not parsedHistory:
+            return
+
+        total = len(parsedHistory)
         self.writeProgress("running", 0, total, "Starting import")
 
         index = 0
         try:
-            for index, meta in enumerate(importer.importHistory(exportedHistory, self._loadTracks().values()), start=1):  #< We only want the tracks, the importer doesn't care about the keys
+            for index, meta in enumerate(importer.importHistory(parsedHistory, self._loadTracks().values(), exportType, progressCallback=self.writeProgress), start=1):  #< We only want the tracks, the importer doesn't care about the keys
                 e, t = self._splitEntryAndTrack(meta)
                 entries.append(e)
                 tracks = self._addTrack(tracks, t)
                 self.saveImagesFromTrack(t)
-                self.writeProgress("running", index, total, f"Imported {index} of {total}")
+
+                if index % self.PROGRESS_UPDATE_INTERVAL == 0 or index == total:
+                    self.writeProgress("running", index, total, f"Imported {index} of {total}")
+
             self._saveEntries(entries)
             self._saveTracks(tracks)
             self.resortDatabase()     #< Entries are not added in order, so sort them by timestamp
