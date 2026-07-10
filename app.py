@@ -6,7 +6,7 @@ from pathlib import Path
 import time
 from datetime import timedelta
 
-from flask import Flask, render_template, redirect, request, url_for, jsonify, send_from_directory, session
+from flask import Flask, render_template, redirect, request, url_for, jsonify, send_from_directory, session, g
 
 from Database.database import Database
 from Database.Migrators.migrate import migrateIfNeeded
@@ -255,7 +255,9 @@ class SpotifyDashboardApp:
 
         song["contextName"] = None
         if "playedFrom" in song:
-            song["contextName"] = self.database.playlistName(song["playedFrom"])
+            db = g.get("db", None)
+            if db:
+                song["contextName"] = db.playlistName(song["playedFrom"])
 
         artistsText = ", ".join(a.get("name", "") for a in song["artists"])
         releaseDateText = dateToString(song["album"]["releaseDate"])
@@ -318,7 +320,9 @@ class SpotifyDashboardApp:
         playedFrom = item.get("playedFrom")
         if playedFrom:
             try:
-                parts.append(self.database.playlistName(playedFrom))
+                db = g.get("db", None)
+                if db:
+                    parts.append(db.playlistName(playedFrom))
             except:
                 pass
 
@@ -447,6 +451,7 @@ class SpotifyDashboardApp:
 
             username = correct_username
             db = self.get_user_db(username, email)
+            g.db = db
             return email, username, db
 
         @self.app.route('/img/<username>/tracks/<filename>')
