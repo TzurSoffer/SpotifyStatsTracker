@@ -335,8 +335,6 @@ class Database:
     
     def saveImagesFromTrack(self, track: dict):
         self.saveTrackImg(track["imageUrl"], track["imageId"])
-        for artist in track["artists"]:
-            self.saveArtistImg(artist["imageUrl"], artist["imageId"])
 
     def appendMetadata(self, meta: dict) -> None:
         self.saveImagesFromTrack(meta)

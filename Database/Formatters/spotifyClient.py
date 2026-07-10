@@ -6,14 +6,11 @@ class Client:
         artists = []
 
         for artist in (albumRaw.get("artists") or []):
-            imageUrl = "https://i.scdn.co/image/52c2a824e84f4e8adf0b12418f9f8306b4b5b77a"
-            if ("images" in artist) and (len(artist["images"]) > 0):
-                imageUrl = artist["images"][0]["url"]
             artists.append(
                 {
                     "name": artist.get("name", ""),
                     "url": artist.get("external_urls", {}).get("spotify", "https://open.spotify.com/artist/6FXMGgJwohJLUSr5nVlf9X"),
-                    "imageUrl": imageUrl,
+                    "imageUrl": "",
                     "imageId": artist.get("id", 0),
                     "id": artist.get("id", "6FXMGgJwohJLUSr5nVlf9X"),
                 }
