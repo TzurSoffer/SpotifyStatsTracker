@@ -117,9 +117,9 @@ if not is_mocked:
                     return False
 
                 self.user_auth = spotapi.Login.from_saver(saver, cfg, identifier)
-            except Exception:
-                SpotipyFree.Spotify.extractCookiesFromBrowser(cookiesFile)
-                return self.login(cookiesFile)
+            except Exception as e:
+                print(f"[Patches] Failed to login user {identifier if 'identifier' in locals() else 'unknown'}: {e}")
+                return False
             return True
 
         SpotipyFree.Spotify.login = patched_spotify_login
