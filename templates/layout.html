@@ -29,7 +29,7 @@
         <a href="{{ url_for('topSongsPage', q=currentQuery) if currentQuery else url_for('topSongsPage') }}">Top Songs</a>
         <a href="{{ url_for('topArtistsPage', q=currentQuery) if currentQuery else url_for('topArtistsPage') }}">Top Artists</a>
         <a href="{{ url_for('importPage') }}">Import</a>
-        <a href="/login">Logout</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
       </nav>
     </header>
 

@@ -6,7 +6,7 @@ from pathlib import Path
 import time
 from datetime import timedelta
 
-from flask import Flask, render_template, redirect, request, url_for, jsonify, send_from_directory
+from flask import Flask, render_template, redirect, request, url_for, jsonify, send_from_directory, session
 
 from Database.database import Database
 from Database.Migrators.migrate import migrateIfNeeded
@@ -17,13 +17,14 @@ class SpotifyDashboardApp:
     def __init__(self):
         migrateIfNeeded()
         self.app = Flask(__name__)
+        self.app.secret_key = os.environ.get("FLASK_SECRET_KEY", "spotify-stats-tracker-secret")
+        self.app.permanent_session_lifetime = timedelta(days=30)
         self.baseDir = Path(__file__).resolve().parent
-        self.isLoggedIn = False
-        self.username = "Tzur"
         self.cookiesFile = self.baseDir / "secrets" / "cookies.json"
-        self.database = Database(user=self.username)
-        self.database.startAutoImporter()
-        self.database.resetProgress()
+        
+        self.user_databases = {}
+        self._db_lock = threading.RLock()
+        
         try:
             self.currentVersion = (self.baseDir / "Database" / "VERSION").read_text(encoding="utf-8").strip()  #< only needs to be checked once because app cant update without restart
         except Exception:
@@ -35,33 +36,106 @@ class SpotifyDashboardApp:
 
         self.registerRoutes()
 
-    def startListenerIfNeeded(self):
-        if self.database.listener is None:
-            self.database.startListener(str(self.cookiesFile))
-            print("Started listener thread.")
-            time.sleep(2)  # Give listener time to initialize
-    
+    def get_username_for_email(self, email):
+        map_file = self.baseDir / "secrets" / "users_map.json"
+        if map_file.exists():
+            try:
+                users_map = json.loads(map_file.read_text(encoding="utf-8"))
+                if email in users_map:
+                    return users_map[email]
+            except Exception:
+                pass
+        
+        # Backward compatibility for the original user
+        if email == "timorzipa@gmail.com":
+            return "Tzur"
+            
+        return None
+
+    def get_or_create_user(self, email):
+        username = self.get_username_for_email(email)
+        if username:
+            return username
+            
+        # Create a new username from email prefix
+        prefix = email.split("@")[0]
+        sanitized = "".join(c for c in prefix if c.isalnum() or c in ("-", "_")).strip()
+        if not sanitized:
+            sanitized = f"user_{int(time.time())}"
+            
+        # Ensure uniqueness under Database/Users/
+        username = sanitized
+        counter = 1
+        users_dir = self.baseDir / "Database" / "Users"
+        while (users_dir / username).exists() or username in self.user_databases:
+            username = f"{sanitized}_{counter}"
+            counter += 1
+            
+        # Save to mapping
+        map_file = self.baseDir / "secrets" / "users_map.json"
+        users_map = {}
+        if map_file.exists():
+            try:
+                users_map = json.loads(map_file.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        users_map[email] = username
+        map_file.parent.mkdir(parents=True, exist_ok=True)
+        map_file.write_text(json.dumps(users_map, indent=4), encoding="utf-8")
+        
+        # Ensure directories exist
+        (users_dir / username).mkdir(parents=True, exist_ok=True)
+        
+        return username
+
+    def get_user_db(self, username, email):
+        with self._db_lock:
+            if username not in self.user_databases:
+                db = Database(user=username)
+                db.startAutoImporter()
+                db.resetProgress()
+                db.startListener(str(self.cookiesFile), email=email)
+                self.user_databases[username] = db
+            return self.user_databases[username]
+
+    def is_user_logged_in(self, email):
+        if not email:
+            return False
+        if not self.cookiesFile.exists():
+            return False
+        try:
+            cookies_data = json.loads(self.cookiesFile.read_text(encoding="utf-8"))
+            has_cookie = any(c.get("identifier") == email for c in cookies_data)
+            if not has_cookie:
+                return False
+        except Exception:
+            return False
+            
+        username = self.get_username_for_email(email)
+        if username and username in self.user_databases:
+            return self.user_databases[username].isListenerLoggedIn()
+        return True
+
     def checkLogin_thread(self):
-        self._ensureLogin()
+        self._ensureAllUsersLogin()
         thread = threading.Thread(target=self._checkLoginLoop, daemon=True)
         thread.start()
     
-    def _ensureLogin(self):
+    def _ensureAllUsersLogin(self):
         if self.cookiesFile.exists():
             try:
-                json.loads(self.cookiesFile.read_text(encoding="utf-8"))
-                self.startListenerIfNeeded()
-                if self.database.isListenerLoggedIn():
-                    self.isLoggedIn = True
+                cookies_data = json.loads(self.cookiesFile.read_text(encoding="utf-8"))
+                for entry in cookies_data:
+                    email = entry.get("identifier")
+                    if email:
+                        username = self.get_or_create_user(email)
+                        self.get_user_db(username, email)
             except Exception as e:
-                print(e)
-                self.isLoggedIn = False
-        else:
-            self.isLoggedIn = False
+                print("Error initializing users:", e)
     
     def _checkLoginLoop(self):
         while True:
-            self._ensureLogin()
+            self._ensureAllUsersLogin()
             time.sleep(60 * 5)  # Check every 5 minutes
 
     def startVersionCheck_thread(self):
@@ -285,6 +359,17 @@ class SpotifyDashboardApp:
             except Exception:
                 return False
 
+        def get_current_user_or_redirect():
+            email = session.get("email")
+            if not email or not self.is_user_logged_in(email):
+                return None, None, None
+            username = session.get("username")
+            if not username:
+                username = self.get_or_create_user(email)
+                session["username"] = username
+            db = self.get_user_db(username, email)
+            return email, username, db
+
         @self.app.route('/img/<username>/tracks/<filename>')
         def serveTrackImage(username, filename):
             imageDir = os.path.join(self.baseDir, "Database", "Users", username, "img", "tracks")
@@ -297,21 +382,28 @@ class SpotifyDashboardApp:
 
         @self.app.route("/import-history", methods=["POST"])
         def importHistory():
-            if self.database.readProgress().get("status") == "running":
+            email, username, db = get_current_user_or_redirect()
+            if not email:
+                return redirect(url_for("login"))
+
+            if db.readProgress().get("status") == "running":
                 return redirect(url_for("importPage"))
 
             upload = request.files.get("history_file")
             if upload is None or upload.filename == "":
                 return redirect(url_for("importPage"))
 
-            thread = threading.Thread(target=self.database.importHistory, args=(upload.read().decode("utf-8"),), daemon=True)
+            thread = threading.Thread(target=db.importHistory, args=(upload.read().decode("utf-8"),), daemon=True)
             thread.start()
             time.sleep(1)  # Give thread time to start and update progress
             return redirect(url_for("importPage"))
 
         @self.app.route("/import", methods=["GET"])
         def importPage():
-            return render_template("import.html", importProgress=self.database.readProgress())
+            email, username, db = get_current_user_or_redirect()
+            if not email:
+                return redirect(url_for("login"))
+            return render_template("import.html", importProgress=db.readProgress())
 
         @self.app.route("/login", methods=["GET", "POST"])
         def login():
@@ -335,14 +427,25 @@ class SpotifyDashboardApp:
                     return render_template("login.html", step=2, email=email, error="Cookies required.")
 
                 saveSession(parseCookieString(cookies), email, self.cookiesFile)
-                self.isLoggedIn = True
-                self.startListenerIfNeeded()
+                session.permanent = True
+                username = self.get_or_create_user(email)
+                self.get_user_db(username, email)
+                session["email"] = email
+                session["username"] = username
 
                 return redirect(url_for("dashboard"))
 
+        @self.app.route("/logout", methods=["GET"])
+        def logout():
+            session.clear()
+            return redirect(url_for("login"))
+
         @self.app.route("/import-progress", methods=["GET"])
         def importProgress():
-            return jsonify(self.database.readProgress())
+            email, username, db = get_current_user_or_redirect()
+            if not email:
+                return jsonify({"error": "unauthorized"}), 401
+            return jsonify(db.readProgress())
 
         @self.app.route("/version_status", methods=["GET"])
         def version_status():
@@ -356,7 +459,8 @@ class SpotifyDashboardApp:
 
         @self.app.route("/", methods=["GET"])
         def dashboard():
-            if not self.isLoggedIn:
+            email, username, db = get_current_user_or_redirect()
+            if not email:
                 return redirect(url_for("login", next=request.path))
 
             page = int(request.args.get("page", 1) or 1)
@@ -367,7 +471,7 @@ class SpotifyDashboardApp:
             if interval == "custom" and not (customStart and customEnd):
                 interval = "all time"
 
-            tracks = self.database.getEntriesFromNew()
+            tracks = db.getEntriesFromNew()
             if searchQuery:
                 self._embedIndices(tracks)
             tracks = self._filterBySearch(tracks, searchQuery)
@@ -376,7 +480,7 @@ class SpotifyDashboardApp:
 
             intervalLabel = self._getIntervalLabel(interval, customStart, customEnd)
             startDate, endDate = self._getDateRange(interval, customStart, customEnd, default="day")
-            stats = self.database.getOverallStats(startDate, endDate) 
+            stats = db.getOverallStats(startDate, endDate) 
 
             totalDurationText = msToString(stats["totalDurationMs"])
 
@@ -408,7 +512,7 @@ class SpotifyDashboardApp:
                 currentTopSong=currentTopSong,
                 currentTopArtist=currentTopArtist,
                 intervalLabel=intervalLabel,
-                username=self.username,
+                username=username,
                 page=page,
                 totalPages=totalPages,
                 prevUrl=prevUrl,
@@ -422,7 +526,8 @@ class SpotifyDashboardApp:
 
         @self.app.route("/top-songs", methods=["GET"])
         def topSongsPage():
-            if not self.isLoggedIn:
+            email, username, db = get_current_user_or_redirect()
+            if not email:
                 return redirect(url_for("login", next=request.path))
 
             page = int(request.args.get("page", 1) or 1)
@@ -433,7 +538,7 @@ class SpotifyDashboardApp:
             customEnd = request.args.get("endDate", "")
             
             startDate, endDate = self._getDateRange(interval, customStart, customEnd, default="all time")
-            rawTopSongs = self.database.getTopSongs(startDate=startDate, endDate=endDate, by=sortBy)
+            rawTopSongs = db.getTopSongs(startDate=startDate, endDate=endDate, by=sortBy)
             if searchQuery:
                 self._embedIndices(rawTopSongs)
             tracks = self._filterBySearch(rawTopSongs, searchQuery)
@@ -457,7 +562,7 @@ class SpotifyDashboardApp:
             return render_template(
                 "top_songs.html",
                 tracks=tracks,
-                username=self.username,
+                username=username,
                 totalPlays=totalPlays,
                 totalTime=msToString(totalMs),
                 page=page,
@@ -474,7 +579,8 @@ class SpotifyDashboardApp:
 
         @self.app.route("/top-artists", methods=["GET"])
         def topArtistsPage():
-            if not self.isLoggedIn:
+            email, username, db = get_current_user_or_redirect()
+            if not email:
                 return redirect(url_for("login", next=request.path))
 
             page = int(request.args.get("page", 1) or 1)
@@ -485,7 +591,7 @@ class SpotifyDashboardApp:
             customEnd = request.args.get("endDate", "")
             
             startDate, endDate = self._getDateRange(interval, customStart, customEnd, default="all time")
-            rawTopArtists = self.database.getTopArtists(startDate=startDate, endDate=endDate, by=sortBy) or []
+            rawTopArtists = db.getTopArtists(startDate=startDate, endDate=endDate, by=sortBy) or []
             if searchQuery:
                 self._embedIndices(rawTopArtists)
             tracks = self._filterBySearch(rawTopArtists, searchQuery)
@@ -509,7 +615,7 @@ class SpotifyDashboardApp:
             return render_template(
                 "top_artists.html",
                 tracks=artists,
-                username=self.username,
+                username=username,
                 totalPlays=totalPlays,
                 totalUnique=totalUnique,
                 totalTime=msToString(totalMs),

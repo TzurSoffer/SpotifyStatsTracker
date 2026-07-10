@@ -36,7 +36,7 @@ class Database:
         self.tracksPath = self.baseDir / "Users" / self.user / "tracks.json"
         self.playlistsPath = self.baseDir / "Users" / self.user / "playlists.json"
         self.progressPath = self.baseDir / "Users" / self.user / "progress.json"
-        self.autoImportFolderPath = self.baseDir / ".." / "autoImport"
+        self.autoImportFolderPath = self.baseDir / ".." / "autoImport" / self.user
 
         self.fileLock = threading.RLock()
         self.entriesCache = None
@@ -536,8 +536,8 @@ class Database:
         compKeys = (by, "totalTimeListened", "name")
         return self._sortTopStats(artists, compKeys, by)
 
-    def startListener(self, cookiesFile):
-        self.listener = Listener(cookiesFile)
+    def startListener(self, cookiesFile, email=None):
+        self.listener = Listener(cookiesFile, email=email)
         self.listener.startListener_thread(callback=self._addToDatabaseFromListener)
 
     def startAutoImporter(self):

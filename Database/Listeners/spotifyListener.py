@@ -4,9 +4,9 @@ from SpotipyFree import Spotify
 from Database.utils import parseError
 
 class Listener:
-    def __init__(self, cookiesFile, refreshInterval=6):
+    def __init__(self, cookiesFile, refreshInterval=6, email=None):
         self.run = False
-        self.sp = Spotify(cookiesFile=cookiesFile)
+        self.sp = Spotify(cookiesFile=cookiesFile, email=email)
         self.sp.startRecentlyPlayedListener(refreshInterval=refreshInterval)
         self.recentlyPlayed_Z1 = self.sp.current_user_recently_played()
 
