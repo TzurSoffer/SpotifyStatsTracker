@@ -48,7 +48,7 @@ class Watchdog:
             print(f"\nStopping monitor... {parseError(e)}")
 
     def watchFolder(self, pathToWatch, callback, checkInterval=5):
-        threading.Thread(target=self.watchFolder_blocking, args=(pathToWatch, callback, checkInterval)).start()
+        threading.Thread(target=self.watchFolder_blocking, args=(pathToWatch, callback, checkInterval), daemon=True).start()
     
     def stop(self):
         self.run = False
