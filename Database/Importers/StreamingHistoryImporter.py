@@ -14,8 +14,8 @@ except ModuleNotFoundError:
 
 
 class Importer:
-    def __init__(self, user="Tzur"):
-        self.sp = SpotipyFree.Spotify()
+    def __init__(self, user="Tzur", cookiesFile=None, email=None):
+        self.sp = SpotipyFree.Spotify(cookiesFile=cookiesFile, email=email)
 
     def _searchForSong(self, name, artist):
         query = f"track:{name} artist:{artist}"

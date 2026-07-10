@@ -63,3 +63,67 @@ def player_status_reconnect(self):
 
 # Inject the reconnect method into PlayerStatus class
 spotapi.status.PlayerStatus.reconnect = player_status_reconnect
+
+
+import json
+import sys
+
+# Check if SpotipyFree is already imported and is a mock
+is_mocked = False
+if "SpotipyFree" in sys.modules:
+    sf = sys.modules["SpotipyFree"]
+    if sf.__class__.__name__ in ("MagicMock", "Mock"):
+        is_mocked = True
+
+if not is_mocked:
+    try:
+        import SpotipyFree
+
+        # 3. Patch SpotipyFree.Spotify to store email on initialization and use it during login,
+        # instead of always hardcoding the first session in the cookies file.
+        original_spotify_init = SpotipyFree.Spotify.__init__
+
+        def patched_spotify_init(self, *args, **kwargs):
+            # Retrieve email from args (4th argument, index 3 in args) or kwargs
+            email = kwargs.get("email", None)
+            if email is None and len(args) >= 4:
+                email = args[3]
+            self.email = email
+            original_spotify_init(self, *args, **kwargs)
+
+        SpotipyFree.Spotify.__init__ = patched_spotify_init
+
+        def patched_spotify_login(self, cookiesFile=None):
+            if cookiesFile is None:
+                cookiesFile = SpotipyFree.Spotify.getCookiesFile()
+            try:
+                cfg = spotapi.Config(logger=spotapi.Logger())
+                saver = spotapi.saver.JSONSaver(cookiesFile)
+                try:
+                    with open(cookiesFile, "r") as f:
+                        sessions = json.load(f)
+                    
+                    identifier = None
+                    if hasattr(self, "email") and self.email:
+                        for s in sessions:
+                            if s.get("identifier") == self.email:
+                                identifier = s["identifier"]
+                                break
+                    
+                    if not identifier and sessions:
+                        identifier = sessions[0]["identifier"]
+                except Exception as e:
+                    print("Error loading cookies file:", e)
+                    return False
+
+                self.user_auth = spotapi.Login.from_saver(saver, cfg, identifier)
+            except Exception:
+                SpotipyFree.Spotify.extractCookiesFromBrowser(cookiesFile)
+                return self.login(cookiesFile)
+            return True
+
+        SpotipyFree.Spotify.login = patched_spotify_login
+    except (ModuleNotFoundError, ImportError):
+        pass
+
+

@@ -136,7 +136,7 @@ class SpotifyDashboardApp:
     def get_user_db(self, username, email):
         with self._db_lock:
             if username not in self.user_databases:
-                db = Database(user=username)
+                db = Database(user=username, cookiesFile=str(self.cookiesFile), email=email)
                 db.startAutoImporter()
                 db.resetProgress()
                 db.startListener(str(self.cookiesFile), email=email)
