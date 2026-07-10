@@ -46,44 +46,89 @@ class SpotifyDashboardApp:
             except Exception:
                 pass
         
-        # Backward compatibility for the original user
-        if email == "timorzipa@gmail.com":
-            return "Tzur"
-            
         return None
+
+    def _migrate_legacy_database_if_needed(self, username):
+        import shutil
+        users_dir = self.baseDir / "Database" / "Users"
+        target_dir = users_dir / username
+        
+        # If target already contains data (entries.json exists and is not empty), no migration is needed
+        target_entries = target_dir / "entries.json"
+        if target_entries.exists() and target_entries.stat().st_size > 2:
+            return
+            
+        # Possible legacy source directories:
+        # 1. Database/Users/Tzur (from early multi-user version)
+        # 2. Database/Tzur (legacy single-user version)
+        legacy_sources = [
+            users_dir / "Tzur",
+            self.baseDir / "Database" / "Tzur"
+        ]
+        
+        for src in legacy_sources:
+            if src.exists() and src.resolve() != target_dir.resolve():
+                src_entries = src / "entries.json"
+                # Check if this source directory actually has database entries
+                if src_entries.exists() and src_entries.stat().st_size > 2:
+                    print(f"Migrating legacy database from {src} to {target_dir}...")
+                    
+                    # Create target directory
+                    target_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    # Copy all contents recursively
+                    def copy_recursive(src_path, dst_path):
+                        dst_path.mkdir(parents=True, exist_ok=True)
+                        for item in src_path.iterdir():
+                            target_item = dst_path / item.name
+                            if item.is_dir():
+                                copy_recursive(item, target_item)
+                            else:
+                                shutil.copy2(item, target_item)
+                                
+                    try:
+                        copy_recursive(src, target_dir)
+                        # Remove the old directory to keep files clean and avoid re-migration
+                        shutil.rmtree(src)
+                        print(f"Successfully migrated and cleaned up legacy folder: {src}")
+                    except Exception as e:
+                        print(f"Error migrating legacy database: {e}")
+                    break
 
     def get_or_create_user(self, email):
         username = self.get_username_for_email(email)
-        if username:
-            return username
-            
-        # Create a new username from email prefix
-        prefix = email.split("@")[0]
-        sanitized = "".join(c for c in prefix if c.isalnum() or c in ("-", "_")).strip()
-        if not sanitized:
-            sanitized = f"user_{int(time.time())}"
-            
-        # Ensure uniqueness under Database/Users/
-        username = sanitized
-        counter = 1
-        users_dir = self.baseDir / "Database" / "Users"
-        while (users_dir / username).exists() or username in self.user_databases:
-            username = f"{sanitized}_{counter}"
-            counter += 1
-            
-        # Save to mapping
-        map_file = self.baseDir / "secrets" / "users_map.json"
-        users_map = {}
-        if map_file.exists():
-            try:
-                users_map = json.loads(map_file.read_text(encoding="utf-8"))
-            except Exception:
-                pass
-        users_map[email] = username
-        map_file.parent.mkdir(parents=True, exist_ok=True)
-        map_file.write_text(json.dumps(users_map, indent=4), encoding="utf-8")
+        if not username:
+            # Create a new username from email prefix
+            prefix = email.split("@")[0]
+            sanitized = "".join(c for c in prefix if c.isalnum() or c in ("-", "_")).strip()
+            if not sanitized:
+                sanitized = f"user_{int(time.time())}"
+                
+            # Ensure uniqueness under Database/Users/
+            username = sanitized
+            counter = 1
+            users_dir = self.baseDir / "Database" / "Users"
+            while (users_dir / username).exists() or username in self.user_databases:
+                username = f"{sanitized}_{counter}"
+                counter += 1
+                
+            # Save to mapping
+            map_file = self.baseDir / "secrets" / "users_map.json"
+            users_map = {}
+            if map_file.exists():
+                try:
+                    users_map = json.loads(map_file.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+            users_map[email] = username
+            map_file.parent.mkdir(parents=True, exist_ok=True)
+            map_file.write_text(json.dumps(users_map, indent=4), encoding="utf-8")
+        
+        # Ensure legacy folders are migrated to this user's active directory
+        self._migrate_legacy_database_if_needed(username)
         
         # Ensure directories exist
+        users_dir = self.baseDir / "Database" / "Users"
         (users_dir / username).mkdir(parents=True, exist_ok=True)
         
         return username
