@@ -14,6 +14,10 @@ except ModuleNotFoundError:
 
 
 class Importer:
+    # 500 allows for frequent progress bar updates in the UI and batches API pre-fetches
+    # to avoid rate limits/network blocking without long delays.
+    CHUNK_SIZE = 500
+
     def __init__(self, user="Tzur"):
         self.sp = SpotipyFree.Spotify()
 
@@ -58,124 +62,142 @@ class Importer:
                 continue
             index[item["name"]+item["artists"][0]["name"]] = item
         return index
+
+    def _parseHistory(self, dataFunction, history):
+        parsedItems = []
+        for item in history:
+            try:
+                name, artist, startTimestamp, timePlayed, trackUri = dataFunction(item)
+                parsedItems.append((name, artist, startTimestamp, timePlayed, trackUri))
+            except Exception:
+                continue
+        return parsedItems
+
+    def _identifyMissingTracks(self, chunk, known):
+        missingTracks = {}
+        for name, artist, startTimestamp, timePlayed, trackUri in chunk:
+            idKey = name + artist if name and artist else None
+            if trackUri and trackUri in known:
+                continue
+            if idKey and idKey in known:
+                continue
+            
+            if trackUri:
+                missingTracks[trackUri] = (name, artist, trackUri)
+            elif idKey:
+                missingTracks[idKey] = (name, artist, None)
+        return missingTracks
+
+    def _prefetchMissingTracks(self, missingTracks, chunkStart, totalItems, known, progressCallback):
+        totalMissing = len(missingTracks)
+        fetchedCount = 0
+        
+        def fetchOne(key, info):
+            name, artist, trackUri = info
+            meta = None
+            try:
+                if trackUri:
+                    try:
+                        meta = self.sp.track(trackUri)
+                    except Exception:
+                        meta = self._searchForSong(name=name, artist=artist)
+                else:
+                    meta = self._searchForSong(name=name, artist=artist)
+            except Exception as e:
+                print(f"Error fetching {name} by {artist}: {parseError(e)}")
+            return key, meta
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {executor.submit(fetchOne, k, val): k for k, val in missingTracks.items()}
+            for future in concurrent.futures.as_completed(futures):
+                fetchedCount += 1
+                if progressCallback:
+                    progressCallback(
+                        "running", 
+                        chunkStart, 
+                        totalItems, 
+                        f"Pre-fetching batch metadata ({fetchedCount}/{totalMissing})..."
+                    )
+                
+                try:
+                    key, meta = future.result()
+                    if meta:
+                        formatted = Client.formatTrack(meta)
+                        known[formatted["id"]] = formatted
+                        if key != formatted["id"]:
+                            known[key] = formatted
+                        if len(formatted["artists"]) > 0:
+                            nameArtistKey = formatted["name"] + formatted["artists"][0]["name"]
+                            known[nameArtistKey] = formatted
+                except Exception as e:
+                    print(f"Error saving pre-fetched track: {parseError(e)}")
+
+    def _processPlay(self, item, known):
+        name, artist, startTimestamp, timePlayed, trackUri = item
+        try:
+            idKey = name + artist if name and artist else None
+            
+            if trackUri and trackUri in known:
+                matchedId = trackUri
+            elif idKey and idKey in known:
+                matchedId = idKey
+            else:
+                matchedId = None
+
+            if matchedId:
+                meta = Client.embedPlayInfo(known[matchedId].copy(), startTimestamp, timePlayed)
+            else:
+                if not name or not artist:
+                    return None
+                
+                if trackUri:
+                    try:
+                        meta = self.sp.track(trackUri)
+                    except Exception:
+                        meta = self._searchForSong(name=name, artist=artist)
+                else:
+                    meta = self._searchForSong(name=name, artist=artist)
+                    
+                meta = Client.formatTrack(meta, startTimestamp, msPlayed=timePlayed)
+                
+                newCopy = meta.copy()
+                known[meta["id"]] = newCopy
+                if idKey:
+                    known[idKey] = newCopy
+
+            return meta
+        except Exception as e:
+            print(f"Error processing item: {parseError(e)}")
+            return None
         
     def _import(self, dataFunction, history, known=[], progress_callback=None):
         known = self.buildKnownIndex(known)
         
-        # 1. Parse all items into memory first (fast)
-        parsed_items = []
-        for item in history:
-            try:
-                name, artist, startTimestamp, timePlayed, trackUri = dataFunction(item)
-                parsed_items.append((name, artist, startTimestamp, timePlayed, trackUri))
-            except Exception:
-                continue
-                
-        total_items = len(parsed_items)
-        if total_items == 0:
+        parsedItems = self._parseHistory(dataFunction, history)
+        totalItems = len(parsedItems)
+        if totalItems == 0:
             return
             
-        # Process history in chunks (batches) of 500 entries
-        CHUNK_SIZE = 500
-        
-        for chunk_start in range(0, total_items, CHUNK_SIZE):
-            chunk = parsed_items[chunk_start : chunk_start + CHUNK_SIZE]
+        for chunkStart in range(0, totalItems, self.CHUNK_SIZE):
+            chunk = parsedItems[chunkStart : chunkStart + self.CHUNK_SIZE]
             
-            # Identify missing tracks in the current chunk
-            missing_tracks = {}
-            for name, artist, startTimestamp, timePlayed, trackUri in chunk:
-                id_key = name+artist if name and artist else None
-                if trackUri and trackUri in known:
-                    continue
-                if id_key and id_key in known:
-                    continue
-                
-                if trackUri:
-                    missing_tracks[trackUri] = (name, artist, trackUri)
-                elif id_key:
-                    missing_tracks[id_key] = (name, artist, None)
+            missingTracks = self._identifyMissingTracks(chunk, known)
             
             # Fetch missing tracks in this chunk concurrently
-            if missing_tracks:
-                total_missing = len(missing_tracks)
-                fetched_count = 0
-                lock = threading.Lock()
-                
-                def fetch_one(key, info):
-                    nonlocal fetched_count
-                    name, artist, trackUri = info
-                    meta = None
-                    try:
-                        if trackUri:
-                            try:
-                                meta = self.sp.track(trackUri)
-                            except Exception:
-                                meta = self._searchForSong(name=name, artist=artist)
-                        else:
-                            meta = self._searchForSong(name=name, artist=artist)
-                    except Exception as e:
-                        print(f"Error fetching {name} by {artist}: {parseError(e)}")
-                        
-                    with lock:
-                        fetched_count += 1
-                        if progress_callback:
-                            progress_callback("running", chunk_start, total_items, f"Pre-fetching batch metadata ({fetched_count}/{total_missing})...")
-                    return key, meta
-                
-                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-                    futures = {executor.submit(fetch_one, k, val): k for k, val in missing_tracks.items()}
-                    for future in concurrent.futures.as_completed(futures):
-                        key = futures[future]
-                        try:
-                            key, meta = future.result()
-                            if meta:
-                                formatted = Client.formatTrack(meta)
-                                known[formatted["id"]] = formatted
-                                if key != formatted["id"]:
-                                    known[key] = formatted
-                                if len(formatted["artists"]) > 0:
-                                    name_artist_key = formatted["name"] + formatted["artists"][0]["name"]
-                                    known[name_artist_key] = formatted
-                        except Exception as e:
-                            print(f"Error saving pre-fetched track: {parseError(e)}")
+            if missingTracks:
+                self._prefetchMissingTracks(
+                    missingTracks, 
+                    chunkStart, 
+                    totalItems, 
+                    known, 
+                    progress_callback
+                )
             
             # Yield items from the current chunk (fully in-memory now)
-            for name, artist, startTimestamp, timePlayed, trackUri in chunk:
-                try:
-                    id_key = name+artist if name and artist else None
-                    
-                    if trackUri and trackUri in known:
-                        matched_id = trackUri
-                    elif id_key and id_key in known:
-                        matched_id = id_key
-                    else:
-                        matched_id = None
-
-                    if matched_id:
-                        meta = Client.embedPlayInfo(known[matched_id].copy(), startTimestamp, timePlayed)
-                    else:
-                        if not name or not artist:
-                            continue
-                        
-                        if trackUri:
-                            try:
-                                meta = self.sp.track(trackUri)
-                            except Exception:
-                                meta = self._searchForSong(name=name, artist=artist)
-                        else:
-                            meta = self._searchForSong(name=name, artist=artist)
-                            
-                        meta = Client.formatTrack(meta, startTimestamp, msPlayed=timePlayed)
-                        
-                        new_copy = meta.copy()
-                        known[meta["id"]] = new_copy
-                        if id_key:
-                            known[id_key] = new_copy
-
+            for item in chunk:
+                meta = self._processPlay(item, known)
+                if meta:
                     yield meta
-                except Exception as e:
-                    print(f"Error processing item: {parseError(e)}")
-                    continue
 
     def importAcountHistory(self, history, known=[], progress_callback=None):
         def dataFunction(item):
@@ -204,7 +226,7 @@ class Importer:
         
         yield from self._import(dataFunction, history, known, progress_callback)
 
-    def importMusicoletCSVExport(self, rows, known=[]):
+    def importMusicoletCSVExport(self, rows, known=[], progress_callback=None):
         def expand(rows):
             ### Data formatted in: FILE_PATH,TITLE,ARTIST,ALBUM,ALBUM_ARTIST,COMPOSER,GENRE,YEAR,DURATION_MS,PLAY_COUNT
             NAME = 1
@@ -224,9 +246,9 @@ class Importer:
                     name = song[NAME]
                     mainArtist = song[ARTISTS].split("/")[0]
                     timePlayed = int(song[DURATION_MS])
-                    play_count = int(song[PLAYCOUNT])
+                    playCount = int(song[PLAYCOUNT])
                     
-                    for _ in range(play_count):
+                    for _ in range(playCount):
                         startTimestamp = currentTime.strftime("%Y-%m-%d %H:%M:%S")
                         formatedData.append((
                             name,
