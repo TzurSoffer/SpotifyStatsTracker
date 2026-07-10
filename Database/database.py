@@ -299,10 +299,13 @@ class Database:
                 # this ensures it's persisted successfully.
                 cachedIdsSet.add(imgId)
                 metadataPath.write_text(json.dumps(list(cachedIdsSet), indent=4), encoding="utf-8")
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching image from {url}: {parseError(e)}")
         except Exception as e:
-            print(f"Error saving image: {parseError(e)}")
+            with self._imageIdsLock:
+                cachedIdsSet.discard(imgId)
+            if isinstance(e, requests.exceptions.RequestException):
+                print(f"Error fetching image from {url}: {parseError(e)}")
+            else:
+                print(f"Error saving image: {parseError(e)}")
 
     def _saveImg(self, path: Path, url: str, imgId: str, isTrack: bool):
         metadataPath = path / "metadata.json"
