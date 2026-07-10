@@ -1,4 +1,3 @@
-from __future__ import annotations
 import datetime
 import copy
 import os
@@ -9,7 +8,6 @@ from io import BytesIO
 
 import requests
 from PIL import Image
-import concurrent.futures
 
 try:
     from Database.Formatters.spotifyClient import Client
@@ -25,6 +23,8 @@ except ModuleNotFoundError:
     from utils import parseError, convertToDatetime
 
 class Database:
+    PROGRESS_UPDATE_INTERVAL = 10   #< Write import progress to disk every N entries instead of every entry
+
     def __init__(self, user: str = "Tzur"):
         self.user = user
         self.listener = None
@@ -42,11 +42,6 @@ class Database:
         self.entriesCache = None
         self.tracksCache = None
         self.playlistsCache = None
-
-        self._imageIdsLock = threading.RLock()
-        self._downloadedTrackImages = None
-        self._downloadedArtistImages = None
-        self._imageDownloadExecutor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
 
         filterKeyword = os.environ.get("IMPORT_KEYWORD", None)
         print(f"auto import filtering by {filterKeyword}")
@@ -132,13 +127,12 @@ class Database:
         tracks[track["id"]] = track
         return tracks
 
-    def _saveNewTrackFromId(self, id, tracks=None, deferSave=False):
+    def _saveNewTrackFromId(self, id, tracks=None):
         if tracks == None:
             tracks = self._loadTracks()
         track = Client.formatTrack(self.listener.track(id), embedPlaybackInfo=False)
         tracks = self._addTrack(tracks, track)
-        if not deferSave:
-            self._saveTracks(tracks)
+        self._saveTracks(tracks)
 
     def _splitEntryAndTrack(self, metadata: dict) -> tuple[list, dict]:
         entry = {
@@ -152,14 +146,14 @@ class Database:
         metadata.pop("playedFrom", None)
         return entry, metadata
 
-    def _paginateEntry(self, entry: dict, tracks: dict = None, deferSave: bool = False) -> dict:
+    def _paginateEntry(self, entry: dict, tracks: dict = None) -> dict:
         if tracks is None:
             tracks = self._loadTracks()
 
         if entry["id"] not in tracks:
             print(f"Missing track metadata for {entry['id']}, downloading it")
             try:
-                self._saveNewTrackFromId(entry["id"], tracks, deferSave=deferSave)
+                self._saveNewTrackFromId(entry["id"], tracks)
             except Exception:
                 print("Failed to download track")
                 return None
@@ -175,15 +169,10 @@ class Database:
     def _paginateEntries(self, entries: list) -> list:
         ret = []
         tracks = self._loadTracks()
-        initialLength = len(tracks)
         for entry in entries:
-            metadata = self._paginateEntry(entry, tracks, deferSave=True)
+            metadata = self._paginateEntry(entry, tracks)
             if metadata != None:
                 ret.append(metadata)
-                
-        if len(tracks) > initialLength:
-            self._saveTracks(tracks)
-            
         return ret
 
     def appendEntries(self, newEntries: list):
@@ -285,56 +274,35 @@ class Database:
     def resetProgress(self):
         self.writeProgress("idle", 0, 0, "", False)
 
-    def _downloadImageTask(self, path: Path, url: str, imgId: str, metadataPath: Path, cachedIdsSet: set):
+    def _saveImg(self, path: Path, url: str, imgId: str):
+        metadataPath = path / "metadata.json"
+        path.mkdir(parents=True, exist_ok=True)
+        ids = self._loadJsonFile(metadataPath, [])
+        if imgId in ids:
+            print(f"Image for {imgId} already downloaded.")
+            return
         try:
-            response = requests.get(url, timeout=10)
+            response = requests.get(url)
             response.raise_for_status()
             img = Image.open(BytesIO(response.content))
             ext = img.format.lower() if img.format else "jpeg"
             
             img.save(path / f"{imgId}.{ext}")
-            
-            with self._imageIdsLock:
-                # Add to set and persist. Pre-adding handles immediate concurrent lookups, 
-                # this ensures it's persisted successfully.
-                cachedIdsSet.add(imgId)
-                metadataPath.write_text(json.dumps(list(cachedIdsSet), indent=4), encoding="utf-8")
+            ids.append(imgId)
+
+            metadataPath.write_text(
+                json.dumps(ids, indent=4), encoding="utf-8"
+            )
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching image from {url}: {parseError(e)}")
         except Exception as e:
-            with self._imageIdsLock:
-                cachedIdsSet.discard(imgId)
-            if isinstance(e, requests.exceptions.RequestException):
-                print(f"Error fetching image from {url}: {parseError(e)}")
-            else:
-                print(f"Error saving image: {parseError(e)}")
-
-    def _saveImg(self, path: Path, url: str, imgId: str, isTrack: bool):
-        metadataPath = path / "metadata.json"
-        
-        with self._imageIdsLock:
-            if isTrack:
-                if self._downloadedTrackImages is None:
-                    path.mkdir(parents=True, exist_ok=True)
-                    self._downloadedTrackImages = set(self._loadJsonFile(metadataPath, []))
-                cachedSet = self._downloadedTrackImages
-            else:
-                if self._downloadedArtistImages is None:
-                    path.mkdir(parents=True, exist_ok=True)
-                    self._downloadedArtistImages = set(self._loadJsonFile(metadataPath, []))
-                cachedSet = self._downloadedArtistImages
-
-            if imgId in cachedSet:
-                return
-            
-            # Pre-add to set to prevent duplicate concurrent download requests for the same image
-            cachedSet.add(imgId)
-
-        self._imageDownloadExecutor.submit(self._downloadImageTask, path, url, imgId, metadataPath, cachedSet)
+            print(f"Error saving image: {parseError(e)}")
 
     def saveTrackImg(self, url: str, imgId: str):
-        self._saveImg(self.imgDir_tracks, url, imgId, isTrack=True)
+        self._saveImg(self.imgDir_tracks, url, imgId)
 
     def saveArtistImg(self, url: str, imgId: str):
-        self._saveImg(self.imgDir_artists, url, imgId, isTrack=False)
+        self._saveImg(self.imgDir_artists, url, imgId)
     
     def saveImagesFromTrack(self, track: dict):
         self.saveTrackImg(track["imageUrl"], track["imageId"])
@@ -355,7 +323,7 @@ class Database:
         """ In case entries got out of order, this will sort them by playedAt timestamp. """
         entries = self._loadEntries()
         entries.sort(
-            key=lambda x: x.get("playedAt", 0) if isinstance(x.get("playedAt", 0), (int, float)) else convertToDatetime(x.get("playedAt", 0)).timestamp()
+            key=lambda x: convertToDatetime(x["playedAt"]).timestamp()
         )
         print("Resorted Database")
 
@@ -365,34 +333,28 @@ class Database:
         entries = self._loadEntries()
         tracks = self._loadTracks()
         importer = Importer()
-        
+
         parsedHistory, exportType = importer._convertToList(exportedHistory)
         if not parsedHistory:
             return
-            
+
         total = len(parsedHistory)
         self.writeProgress("running", 0, total, "Starting import")
 
-        def progressCallback(status, current, totalSteps, message):
-            self.writeProgress(status, current, totalSteps, message)
-
         index = 0
         try:
-            for index, meta in enumerate(importer.importHistory(parsedHistory, self._loadTracks().values(), exportType, progressCallback=progressCallback), start=1):  #< We only want the tracks, the importer doesn't care about the keys
+            for index, meta in enumerate(importer.importHistory(parsedHistory, self._loadTracks().values(), exportType, progressCallback=self.writeProgress), start=1):  #< We only want the tracks, the importer doesn't care about the keys
                 e, t = self._splitEntryAndTrack(meta)
                 entries.append(e)
                 tracks = self._addTrack(tracks, t)
                 self.saveImagesFromTrack(t)
-                
-                if index % 10 == 0 or index == total:
+
+                if index % self.PROGRESS_UPDATE_INTERVAL == 0 or index == total:
                     self.writeProgress("running", index, total, f"Imported {index} of {total}")
-            
-            # Sort entries in-memory before saving, avoiding redundant read/writes
-            entries.sort(
-                key=lambda x: x.get("playedAt", 0) if isinstance(x.get("playedAt", 0), (int, float)) else convertToDatetime(x.get("playedAt", 0)).timestamp()
-            )
+
             self._saveEntries(entries)
             self._saveTracks(tracks)
+            self.resortDatabase()     #< Entries are not added in order, so sort them by timestamp
             self.writeProgress("complete", total, total, "Import complete")
         except Exception as e:
             self.writeProgress("failed", index, total, f"Import failed: {parseError(e)}", error=True)

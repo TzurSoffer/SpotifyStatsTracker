@@ -3,7 +3,6 @@ import json
 import datetime
 import SpotipyFree
 import concurrent.futures
-import threading
 
 try:
     from Database.Formatters.spotifyClient import Client
