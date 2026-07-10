@@ -1,3 +1,4 @@
+from __future__ import annotations
 import datetime
 import copy
 import os
@@ -8,6 +9,7 @@ from io import BytesIO
 
 import requests
 from PIL import Image
+import concurrent.futures
 
 try:
     from Database.Formatters.spotifyClient import Client
@@ -40,6 +42,11 @@ class Database:
         self.entriesCache = None
         self.tracksCache = None
         self.playlistsCache = None
+
+        self._imageIdsLock = threading.RLock()
+        self._downloadedTrackImages = None
+        self._downloadedArtistImages = None
+        self._imageDownloadExecutor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
 
         filterKeyword = os.environ.get("IMPORT_KEYWORD", None)
         print(f"auto import filtering by {filterKeyword}")
@@ -125,12 +132,13 @@ class Database:
         tracks[track["id"]] = track
         return tracks
 
-    def _saveNewTrackFromId(self, id, tracks=None):
+    def _saveNewTrackFromId(self, id, tracks=None, deferSave=False):
         if tracks == None:
             tracks = self._loadTracks()
         track = Client.formatTrack(self.listener.track(id))
         tracks = self._addTrack(tracks, track)
-        self._saveTracks(tracks)
+        if not deferSave:
+            self._saveTracks(tracks)
 
     def _splitEntryAndTrack(self, metadata: dict) -> tuple[list, dict]:
         entry = {
@@ -144,14 +152,14 @@ class Database:
         metadata.pop("playedFrom", None)
         return entry, metadata
 
-    def _paginateEntry(self, entry: dict, tracks: dict = None) -> dict:
+    def _paginateEntry(self, entry: dict, tracks: dict = None, deferSave: bool = False) -> dict:
         if tracks is None:
             tracks = self._loadTracks()
 
         if entry["id"] not in tracks:
             print(f"Missing track metadata for {entry['id']}, downloading it")
             try:
-                self._saveNewTrackFromId(entry["id"], tracks)
+                self._saveNewTrackFromId(entry["id"], tracks, deferSave=deferSave)
             except Exception:
                 print("Failed to download track")
                 return None
@@ -167,10 +175,15 @@ class Database:
     def _paginateEntries(self, entries: list) -> list:
         ret = []
         tracks = self._loadTracks()
+        initialLength = len(tracks)
         for entry in entries:
-            metadata = self._paginateEntry(entry, tracks)
+            metadata = self._paginateEntry(entry, tracks, deferSave=True)
             if metadata != None:
                 ret.append(metadata)
+                
+        if len(tracks) > initialLength:
+            self._saveTracks(tracks)
+            
         return ret
 
     def appendEntries(self, newEntries: list):
@@ -272,35 +285,53 @@ class Database:
     def resetProgress(self):
         self.writeProgress("idle", 0, 0, "", False)
 
-    def _saveImg(self, path: Path, url: str, imgId: str):
-        metadataPath = path / "metadata.json"
-        path.mkdir(parents=True, exist_ok=True)
-        ids = self._loadJsonFile(metadataPath, [])
-        if imgId in ids:
-            print(f"Image for {imgId} already downloaded.")
-            return
+    def _downloadImageTask(self, path: Path, url: str, imgId: str, metadataPath: Path, cachedIdsSet: set):
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=10)
             response.raise_for_status()
             img = Image.open(BytesIO(response.content))
             ext = img.format.lower() if img.format else "jpeg"
             
             img.save(path / f"{imgId}.{ext}")
-            ids.append(imgId)
-
-            metadataPath.write_text(
-                json.dumps(ids, indent=4), encoding="utf-8"
-            )
+            
+            with self._imageIdsLock:
+                # Add to set and persist. Pre-adding handles immediate concurrent lookups, 
+                # this ensures it's persisted successfully.
+                cachedIdsSet.add(imgId)
+                metadataPath.write_text(json.dumps(list(cachedIdsSet), indent=4), encoding="utf-8")
         except requests.exceptions.RequestException as e:
             print(f"Error fetching image from {url}: {parseError(e)}")
         except Exception as e:
             print(f"Error saving image: {parseError(e)}")
 
+    def _saveImg(self, path: Path, url: str, imgId: str, isTrack: bool):
+        metadataPath = path / "metadata.json"
+        
+        with self._imageIdsLock:
+            if isTrack:
+                if self._downloadedTrackImages is None:
+                    path.mkdir(parents=True, exist_ok=True)
+                    self._downloadedTrackImages = set(self._loadJsonFile(metadataPath, []))
+                cachedSet = self._downloadedTrackImages
+            else:
+                if self._downloadedArtistImages is None:
+                    path.mkdir(parents=True, exist_ok=True)
+                    self._downloadedArtistImages = set(self._loadJsonFile(metadataPath, []))
+                cachedSet = self._downloadedArtistImages
+
+            if imgId in cachedSet:
+                return
+            
+            # Pre-add to set to prevent duplicate concurrent download requests for the same image
+            cachedSet.add(imgId)
+
+        self._imageDownloadExecutor.submit(self._downloadImageTask, path, url, imgId, metadataPath, cachedSet)
+
     def saveTrackImg(self, url: str, imgId: str):
-        self._saveImg(self.imgDir_tracks, url, imgId)
+        self._saveImg(self.imgDir_tracks, url, imgId, isTrack=True)
 
     def saveArtistImg(self, url: str, imgId: str):
-        self._saveImg(self.imgDir_artists, url, imgId)
+        self._saveImg(self.imgDir_artists, url, imgId, isTrack=False)
     
     def saveImagesFromTrack(self, track: dict):
         self.saveTrackImg(track["imageUrl"], track["imageId"])
@@ -321,7 +352,7 @@ class Database:
         """ In case entries got out of order, this will sort them by playedAt timestamp. """
         entries = self._loadEntries()
         entries.sort(
-            key=lambda x: convertToDatetime(x["playedAt"]).timestamp()
+            key=lambda x: x.get("playedAt", 0) if isinstance(x.get("playedAt", 0), (int, float)) else convertToDatetime(x.get("playedAt", 0)).timestamp()
         )
         print("Resorted Database")
 
@@ -331,20 +362,34 @@ class Database:
         entries = self._loadEntries()
         tracks = self._loadTracks()
         importer = Importer()
-        total = importer.getLengthOfImport(exportedHistory)
+        
+        parsedHistory, exportType = importer._convertToList(exportedHistory)
+        if not parsedHistory:
+            return
+            
+        total = len(parsedHistory)
         self.writeProgress("running", 0, total, "Starting import")
+
+        def progress_callback(status, current, total_steps, message):
+            self.writeProgress(status, current, total_steps, message)
 
         index = 0
         try:
-            for index, meta in enumerate(importer.importHistory(exportedHistory, self._loadTracks().values()), start=1):  #< We only want the tracks, the importer doesn't care about the keys
+            for index, meta in enumerate(importer.importHistory(parsedHistory, self._loadTracks().values(), exportType, progress_callback=progress_callback), start=1):  #< We only want the tracks, the importer doesn't care about the keys
                 e, t = self._splitEntryAndTrack(meta)
                 entries.append(e)
                 tracks = self._addTrack(tracks, t)
                 self.saveImagesFromTrack(t)
-                self.writeProgress("running", index, total, f"Imported {index} of {total}")
+                
+                if index % 10 == 0 or index == total:
+                    self.writeProgress("running", index, total, f"Imported {index} of {total}")
+            
+            # Sort entries in-memory before saving, avoiding redundant read/writes
+            entries.sort(
+                key=lambda x: x.get("playedAt", 0) if isinstance(x.get("playedAt", 0), (int, float)) else convertToDatetime(x.get("playedAt", 0)).timestamp()
+            )
             self._saveEntries(entries)
             self._saveTracks(tracks)
-            self.resortDatabase()     #< Entries are not added in order, so sort them by timestamp
             self.writeProgress("complete", total, total, "Import complete")
         except Exception as e:
             self.writeProgress("failed", index, total, f"Import failed: {parseError(e)}", error=True)
