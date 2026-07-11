@@ -30,10 +30,10 @@ class Importer:
         """ Fetch raw track metadata by URI, falling back to a name/artist search. """
         if trackUri:
             try:
-                return self.sp.track(trackUri)
-            except Exception:
-                return self._searchForSong(name=name, artist=artist)
-        return self._searchForSong(name=name, artist=artist)
+                return Client.formatTrack(self.sp.track(trackUri), embedPlaybackInfo=False)
+            except:
+                pass
+        return Client.formatTrack(self._searchForSong(name=name, artist=artist), embedPlaybackInfo=False)
 
     def _convertToList(self, export):
         if export.lstrip().startswith("FILE_PATH,"):
@@ -81,20 +81,25 @@ class Importer:
                 print(f"Error parsing item: {parseError(e)}")
                 continue
         return parsedItems
+    
+    def _buildTrackId(self, trackUri, name, artist):
+        if trackUri:
+            return trackUri, True
+        if name and artist:
+            return name + artist, False
+        return None, False
 
     def _identifyMissingTracks(self, chunk, known):
         missingTracks = {}
         for name, artist, startTimestamp, timePlayed, trackUri in chunk:
-            idKey = name + artist if name and artist else None
-            if trackUri and trackUri in known:
-                continue
-            if idKey and idKey in known:
+            idKey, isUri = self._buildTrackId(trackUri, name, artist)
+            if idKey in known:
                 continue
             
-            if trackUri:
-                missingTracks[trackUri] = (name, artist, trackUri)
-            elif idKey:
-                missingTracks[idKey] = (name, artist, None)
+            res = (name, artist, None)
+            if isUri:
+                res = (name, artist, trackUri)
+            missingTracks[idKey] = res
         return missingTracks
 
     def _prefetchMissingTracks(self, missingTracks, chunkStart, totalItems, known, progressCallback):
@@ -121,15 +126,13 @@ class Importer:
                         totalItems, 
                         f"Pre-fetching batch metadata ({fetchedCount}/{totalMissing})..."
                     )
-                
+
                 try:
-                    key, meta = future.result()
-                    if meta:
-                        formatted = Client.formatTrack(meta, embedPlaybackInfo=False)
-                        known[formatted["id"]] = formatted
-                        if key != formatted["id"]:
+                    key, formatted = future.result()
+                    if formatted:
+                        if key:
                             known[key] = formatted
-                        if len(formatted["artists"]) > 0:
+                        elif len(formatted["artists"]) > 0:
                             nameArtistKey = formatted["name"] + formatted["artists"][0]["name"]
                             known[nameArtistKey] = formatted
                 except Exception as e:
@@ -138,33 +141,24 @@ class Importer:
     def _processPlay(self, item, known):
         name, artist, startTimestamp, timePlayed, trackUri = item
         try:
-            idKey = name + artist if name and artist else None
-            
-            if trackUri and trackUri in known:
-                matchedId = trackUri
-            elif idKey and idKey in known:
-                matchedId = idKey
-            else:
-                matchedId = None
-
+            matchedId, isUri = self._buildTrackId(trackUri, name, artist)
             if matchedId:
                 meta = Client.embedPlayInfo(known[matchedId].copy(), startTimestamp, timePlayed)
             else:
                 if not name or not artist:
                     return None
 
-                meta = self._fetchTrackMeta(name, artist, trackUri)
-                base = Client.formatTrack(meta, embedPlaybackInfo=False)
+                base = self._fetchTrackMeta(name, artist, trackUri)
                 known[base["id"]] = base
-                if idKey:
-                    known[idKey] = base
+                if isUri:
+                    known[trackUri] = base
                 meta = Client.embedPlayInfo(base.copy(), startTimestamp, timePlayed)
 
             return meta
         except Exception as e:
             print(f"Error processing item: {parseError(e)}")
             return None
-        
+
     def _import(self, dataFunction, history, known=[], progressCallback=None):
         known = self.buildKnownIndex(known)
         
@@ -181,14 +175,13 @@ class Importer:
             # Fetch missing tracks in this chunk concurrently
             if missingTracks:
                 self._prefetchMissingTracks(
-                    missingTracks, 
-                    chunkStart, 
-                    totalItems, 
-                    known, 
+                    missingTracks,
+                    chunkStart,
+                    totalItems,
+                    known,
                     progressCallback
                 )
-            
-            # Yield items from the current chunk (fully in-memory now)
+
             for item in chunk:
                 meta = self._processPlay(item, known)
                 if meta:

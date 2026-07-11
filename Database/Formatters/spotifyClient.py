@@ -37,11 +37,22 @@ class Client:
         }
     
     @staticmethod
-    def embedPlayInfo(track, timestamp, timePlayed):
+    def embedPlayInfo(track, timestamp, timePlayed, context=None):
         playedAtTimestamp = timeToInt(timestamp)
         
         track["playedAt"] = playedAtTimestamp
         track["timePlayed"] = min(timePlayed, track["duration"])   #< sometimes spotipyFree returns extremely large (wrong) values (I think it has to do with pause)
+
+        playedFrom = None
+        if context:
+            uri = context.get("uri", None)
+            if not uri:
+                return
+            uri = uri.removeprefix("spotify:").removeprefix("internal:recs:")
+            if uri.startswith("album") or uri.startswith("playlist"):
+                playedFrom = uri
+        track["playedFrom"] = playedFrom
+
         return track
     
     @staticmethod
@@ -76,14 +87,4 @@ class Client:
         if not embedPlaybackInfo:
             return track
 
-        playedFrom = None
-        if context:
-            uri = context.get("uri", None)
-            if not uri:
-                return
-            uri = uri.removeprefix("spotify:").removeprefix("internal:recs:")
-            if uri.startswith("album") or uri.startswith("playlist"):
-                playedFrom = uri
-        track["playedFrom"] = playedFrom
-
-        return Client.embedPlayInfo(track, timestamp, msPlayed)
+        return Client.embedPlayInfo(track, timestamp, msPlayed, context)
