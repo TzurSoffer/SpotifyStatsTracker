@@ -13,13 +13,10 @@ except ModuleNotFoundError:
 
 
 class Importer:
-    # 500 allows for frequent progress bar updates in the UI and batches API pre-fetches
-    # to avoid rate limits/network blocking without long delays.
-    CHUNK_SIZE = 1500
-    MAX_PREFETCH_WORKERS = 16
-
-    def __init__(self, user="Tzur"):
+    def __init__(self, user="Tzur", chunkSize = 1500, prefetchWorkersCount = 16):
         self.sp = SpotipyFree.Spotify()
+        self.chunkSize = chunkSize
+        self.prefetchWorkersCount = prefetchWorkersCount
 
     def _searchForSong(self, name, artist):
         query = f"track:{name} artist:{artist}"
@@ -114,7 +111,7 @@ class Importer:
                 print(f"Error fetching {name} by {artist}: {parseError(e)}")
             return key, meta
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.MAX_PREFETCH_WORKERS) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.prefetchWorkersCount) as executor:
             futures = {executor.submit(fetchOne, k, val): k for k, val in missingTracks.items()}
             for future in concurrent.futures.as_completed(futures):
                 fetchedCount += 1
@@ -123,7 +120,7 @@ class Importer:
                         "running",
                         chunkStart + fetchedCount,
                         totalItems,
-                        f"Pre-fetching batch metadata ({fetchedCount}/{totalMissing})..."
+                        f"Fetching batch metadata ({fetchedCount}/{totalMissing})..."
                     )
 
                 try:
@@ -135,9 +132,10 @@ class Importer:
                             nameArtistKey = formatted["name"] + formatted["artists"][0]["name"]
                             known[nameArtistKey] = formatted
                 except Exception as e:
-                    print(f"Error saving pre-fetched track: {parseError(e)}")
+                    print(f"Error saving fetched track: {parseError(e)}")
+        return known
 
-    def _processPlay(self, item, known):
+    def _resolvePlayMetadata(self, item, known):
         name, artist, startTimestamp, timePlayed, trackUri = item
         try:
             matchedId, isUri = self._buildTrackId(trackUri, name, artist)
@@ -167,14 +165,13 @@ class Importer:
         if totalItems == 0:
             return
 
-        for chunkStart in range(0, totalItems, self.CHUNK_SIZE):
-            chunk = parsedItems[chunkStart: chunkStart + self.CHUNK_SIZE]
+        for chunkStart in range(0, totalItems, self.chunkSize):
+            chunk = parsedItems[chunkStart: chunkStart + self.chunkSize]
 
             missingTracks = self._identifyMissingTracks(chunk, known)
 
-            # Fetch missing tracks in this chunk concurrently
             if missingTracks:
-                self._prefetchMissingTracks(
+                known = self._prefetchMissingTracks(  #< get metadata for missing tracks in parallel
                     missingTracks,
                     chunkStart,
                     totalItems,
@@ -183,7 +180,7 @@ class Importer:
                 )
 
             for item in chunk:
-                meta = self._processPlay(item, known)
+                meta = self._resolvePlayMetadata(item, known)
                 if meta:
                     yield meta
 

@@ -23,10 +23,12 @@ except ModuleNotFoundError:
     from utils import parseError, convertToDatetime
 
 class Database:
-    PROGRESS_UPDATE_INTERVAL = 100   #< Write import progress to disk every N entries instead of every entry
-
-    def __init__(self, user: str = "Tzur"):
+    def __init__(self,
+                 user: str = "Tzur",
+                 progressUpdateInterval = 25   #< Write import progress to disk every N entries instead of every entry
+                 ):
         self.user = user
+        self.progressUpdateInterval = progressUpdateInterval
         self.listener = None
         self.baseDir = Path(__file__).resolve().parent
 
@@ -349,7 +351,7 @@ class Database:
                 tracks = self._addTrack(tracks, t)
                 self.saveImagesFromTrack(t)
 
-                if index % self.PROGRESS_UPDATE_INTERVAL == 0 or index == total:
+                if index % self.progressUpdateInterval == 0 or index == total:
                     self.writeProgress("running", index, total, f"Imported {index} of {total}")
 
             self._saveEntries(entries)
