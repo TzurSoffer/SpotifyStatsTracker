@@ -88,7 +88,7 @@ class TestMusicoletImport(unittest.TestCase):
             
         tracks = list(importer._import(dummyDataFunction, history, known=[], progressCallback=progressCallback))
         
-        prefetchCalls = [c for c in progressCalls if "Pre-fetching" in c[3]]
+        prefetchCalls = [c for c in progressCalls if "Fetching batch metadata" in c[3]]
         
         self.assertEqual(len(prefetchCalls), 2)
         self.assertEqual(prefetchCalls[0][1], 1)

@@ -46,9 +46,6 @@ class Importer:
             pass
         return [], "None"
 
-    def getLengthOfImport(self, export):
-        return len(self._convertToList(export)[0])
-
     def importHistory(self, parsedHistory, known, exportType, progressCallback=None):
         if len(parsedHistory) == 0:
             return []
