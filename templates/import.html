@@ -17,7 +17,7 @@
     <div id="import-status" class="import-status">
       <p id="progress-message">
         {% if importProgress.status == 'running' %}
-          Import in progress: {{ importProgress.percentage }}% — {{ importProgress.message }}
+          Import in progress: {{ importProgress.percentage }}% - {{ importProgress.message }}
         {% elif importProgress.status == 'complete' %}
           Last import completed: {{ importProgress.message }}
         {% elif importProgress.status == 'failed' %}
@@ -44,7 +44,7 @@
         const progress = await response.json();
         progressBar.value = progress.percentage || 0;
         if (progress.status === 'running') {
-          progressMessage.textContent = `Import in progress: ${progress.percentage}% — ${progress.message}`;
+          progressMessage.textContent = `Import in progress: ${progress.percentage}% - ${progress.message}`;
           setTimeout(fetchProgress, 1200);
         } else if (progress.status === 'complete') {
           progressMessage.textContent = `Import complete: ${progress.message}`;

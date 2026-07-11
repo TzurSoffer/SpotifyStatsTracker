@@ -37,15 +37,26 @@ class Client:
         }
     
     @staticmethod
-    def embedPlayInfo(track, timestamp, timePlayed):
+    def embedPlayInfo(track, timestamp, timePlayed, context=None):
         playedAtTimestamp = timeToInt(timestamp)
         
         track["playedAt"] = playedAtTimestamp
         track["timePlayed"] = min(timePlayed, track["duration"])   #< sometimes spotipyFree returns extremely large (wrong) values (I think it has to do with pause)
+
+        playedFrom = None
+        if context:
+            uri = context.get("uri", None)
+            if not uri:
+                return
+            uri = uri.removeprefix("spotify:").removeprefix("internal:recs:")
+            if uri.startswith("album") or uri.startswith("playlist"):
+                playedFrom = uri
+        track["playedFrom"] = playedFrom
+
         return track
     
     @staticmethod
-    def formatTrack(track, timestamp=-1, msPlayed=-1, context=None):
+    def formatTrack(track, timestamp=-1, msPlayed=-1, context=None, embedPlaybackInfo=True):
         track = track or {}
         album = track.get("album") or {}
 
@@ -56,15 +67,6 @@ class Client:
 
         artists = Client._formatArtists(album)
         album = Client._formatAlbum(album)
-        
-        playedFrom = None
-        if context:
-            uri = context.get("uri", None)
-            if not uri:
-                return
-            uri = uri.removeprefix("spotify:").removeprefix("internal:recs:")
-            if uri.startswith("album") or uri.startswith("playlist"):
-                playedFrom = uri
 
         track = {
             "name": track.get("name", "Unknown Track"),
@@ -73,7 +75,6 @@ class Client:
             "url": track["external_urls"]["spotify"],
             "artists": artists,
             "album": album,
-            "playedFrom": playedFrom,
             "imageUrl": firstImage.get("url", ""),
             "imageId": album["id"],
             "duration": duration,
@@ -82,4 +83,8 @@ class Client:
             "discNumber": track.get("disc_number", 0),
             "trackNumber": track.get("track_number", 0),
         }
-        return Client.embedPlayInfo(track, timestamp, msPlayed)
+
+        if not embedPlaybackInfo:
+            return track
+
+        return Client.embedPlayInfo(track, timestamp, msPlayed, context)

@@ -2,6 +2,7 @@ import csv
 import json
 import datetime
 import SpotipyFree
+import concurrent.futures
 
 try:
     from Database.Formatters.spotifyClient import Client
@@ -12,14 +13,25 @@ except ModuleNotFoundError:
 
 
 class Importer:
-    def __init__(self, user="Tzur"):
+    def __init__(self, user="Tzur", chunkSize = 1500, prefetchWorkersCount = 16):
         self.sp = SpotipyFree.Spotify()
+        self.chunkSize = chunkSize
+        self.prefetchWorkersCount = prefetchWorkersCount
 
     def _searchForSong(self, name, artist):
         query = f"track:{name} artist:{artist}"
         track = self.sp.search(query, type="track", limit=1)["tracks"]["items"][0]
         # track = self.sp.track(track["external_urls"]["spotify"])
         return track
+
+    def _fetchTrackMeta(self, name, artist, trackUri):
+        """ Fetch raw track metadata by URI, falling back to a name/artist search. """
+        if trackUri:
+            try:
+                return Client.formatTrack(self.sp.track(trackUri), embedPlaybackInfo=False)
+            except Exception as e:
+                print(f"URI lookup failed for {trackUri}, falling back to search: {parseError(e)}")
+        return Client.formatTrack(self._searchForSong(name=name, artist=artist), embedPlaybackInfo=False)
 
     def _convertToList(self, export):
         if export.lstrip().startswith("FILE_PATH,"):
@@ -33,75 +45,170 @@ class Importer:
         except:
             pass
         return [], "None"
-    
-    def getLengthOfImport(self, export):
-        return len(self._convertToList(export)[0])
 
-    def importHistory(self, history, known=[]):
-        history, type = self._convertToList(history)
-        if len(history) == 0:
+    def importHistory(self, parsedHistory, known, exportType, progressCallback=None):
+        if len(parsedHistory) == 0:
             return []
-        if type == "spotifyAcountExport":
-            return self.importAcountHistory(history, known=known)
-        if type == "spotifyExtendedExport":
-                return self.importExtendedHistory(history, known=known)
-        if type == "musicoletPremium":
-            return self.importMusicoletCSVExport(history, known=known)
+        if exportType == "spotifyAcountExport":
+            return self.importAcountHistory(parsedHistory, known=known, progressCallback=progressCallback)
+        if exportType == "spotifyExtendedExport":
+            return self.importExtendedHistory(parsedHistory, known=known, progressCallback=progressCallback)
+        if exportType == "musicoletPremium":
+            return self.importMusicoletCSVExport(parsedHistory, known=known, progressCallback=progressCallback)
         return []
 
     def buildKnownIndex(self, knownTrack):
         index = {}
         for item in knownTrack:
+            index[item["id"]] = item
             if len(item["artists"]) == 0:
                 continue
-            index[item["name"]+item["artists"][0]["name"]] = item
+            index[item["name"] + item["artists"][0]["name"]] = item
         return index
-        
-    def _import(self, dataFunction, history, known=[]):
-        known = self.buildKnownIndex(known)
+
+    def _parseHistory(self, dataFunction, history):
+        parsedItems = []
         for item in history:
             try:
-                name, artist, startTimestamp, timePlayed = dataFunction(item)
-
-                id = name+artist
-                if id in known:
-                    meta = Client.embedPlayInfo(known[id], startTimestamp, timePlayed)
-
-                else:
-                    meta = self._searchForSong(name=name, artist=artist)
-                    meta = Client.formatTrack(meta, startTimestamp, msPlayed=timePlayed)  #< Update with correct played at info:
-                    known[id] = meta
-
-                yield meta
+                name, artist, startTimestamp, timePlayed, trackUri = dataFunction(item)
+                parsedItems.append((name, artist, startTimestamp, timePlayed, trackUri))
             except Exception as e:
-                print(f"Error processing item: {parseError(e)}")
+                print(f"Error parsing item: {parseError(e)}")
+                continue
+        return parsedItems
+
+    def _buildTrackId(self, trackUri, name, artist):
+        if trackUri:
+            return trackUri, True
+        if name and artist:
+            return name + artist, False
+        return None, False
+
+    def _identifyMissingTracks(self, chunk, known):
+        missingTracks = {}
+        for name, artist, startTimestamp, timePlayed, trackUri in chunk:
+            idKey, isUri = self._buildTrackId(trackUri, name, artist)
+            if idKey is None or idKey in known:
                 continue
 
-    def importAcountHistory(self, history, known=[]):
+            res = (name, artist, trackUri if isUri else None)
+            missingTracks[idKey] = res
+        return missingTracks
+
+    def _prefetchMissingTracks(self, missingTracks, chunkStart, totalItems, known, progressCallback):
+        totalMissing = len(missingTracks)
+        fetchedCount = 0
+
+        def fetchOne(key, info):
+            name, artist, trackUri = info
+            meta = None
+            try:
+                meta = self._fetchTrackMeta(name, artist, trackUri)
+            except Exception as e:
+                print(f"Error fetching {name} by {artist}: {parseError(e)}")
+            return key, meta
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.prefetchWorkersCount) as executor:
+            futures = {executor.submit(fetchOne, k, val): k for k, val in missingTracks.items()}
+            for future in concurrent.futures.as_completed(futures):
+                fetchedCount += 1
+                if progressCallback:
+                    progressCallback(
+                        "running",
+                        chunkStart + fetchedCount,
+                        totalItems,
+                        f"Fetching batch metadata ({fetchedCount}/{totalMissing})..."
+                    )
+
+                try:
+                    key, formatted = future.result()
+                    if formatted:
+                        if key:
+                            known[key] = formatted
+                        if len(formatted["artists"]) > 0:
+                            nameArtistKey = formatted["name"] + formatted["artists"][0]["name"]
+                            known[nameArtistKey] = formatted
+                except Exception as e:
+                    print(f"Error saving fetched track: {parseError(e)}")
+        return known
+
+    def _resolvePlayMetadata(self, item, known):
+        name, artist, startTimestamp, timePlayed, trackUri = item
+        try:
+            matchedId, isUri = self._buildTrackId(trackUri, name, artist)
+            if matchedId and matchedId in known:
+                meta = Client.embedPlayInfo(known[matchedId].copy(), startTimestamp, timePlayed)
+            else:
+                if not name or not artist:
+                    return None
+
+                base = self._fetchTrackMeta(name, artist, trackUri)
+                known[base["id"]] = base
+                if trackUri:
+                    known[trackUri] = base
+                known[name + artist] = base
+                meta = Client.embedPlayInfo(base.copy(), startTimestamp, timePlayed)
+
+            return meta
+        except Exception as e:
+            print(f"Error processing item: {parseError(e)}")
+            return None
+
+    def _import(self, dataFunction, history, known=[], progressCallback=None):
+        known = self.buildKnownIndex(known)
+
+        parsedItems = self._parseHistory(dataFunction, history)
+        totalItems = len(parsedItems)
+        if totalItems == 0:
+            return
+
+        for chunkStart in range(0, totalItems, self.chunkSize):
+            chunk = parsedItems[chunkStart: chunkStart + self.chunkSize]
+
+            missingTracks = self._identifyMissingTracks(chunk, known)
+
+            if missingTracks:
+                known = self._prefetchMissingTracks(  #< get metadata for missing tracks in parallel
+                    missingTracks,
+                    chunkStart,
+                    totalItems,
+                    known,
+                    progressCallback
+                )
+
+            for item in chunk:
+                meta = self._resolvePlayMetadata(item, known)
+                if meta:
+                    yield meta
+
+    def importAcountHistory(self, history, known=[], progressCallback=None):
         def dataFunction(item):
             endTimestamp = timeToInt(item["endTime"])
             timePlayed = item["msPlayed"]
 
-            startTimestamp = endTimestamp-timePlayed//1000
-            name=item["trackName"]
-            artist=item["artistName"]
-            return name, artist, startTimestamp, timePlayed
-        
-        yield from self._import(dataFunction, history, known)
+            startTimestamp = endTimestamp - timePlayed // 1000
+            name = item["trackName"]
+            artist = item["artistName"]
+            return name, artist, startTimestamp, timePlayed, None
 
-    def importExtendedHistory(self, history, known=[]):
+        yield from self._import(dataFunction, history, known, progressCallback)
+
+    def importExtendedHistory(self, history, known=[], progressCallback=None):
         def dataFunction(item):
             ts = item["ts"]
-            startTimestamp = timeToInt(ts)
+            endTimestamp = timeToInt(ts)
             timePlayed = item.get("ms_played", 0)
+            startTimestamp = endTimestamp - timePlayed // 1000
 
             name = item["master_metadata_track_name"]
             artist = item["master_metadata_album_artist_name"]
-            return name, artist, startTimestamp, timePlayed
-        
-        yield from self._import(dataFunction, history, known)
+            uri = item.get("spotify_track_uri")
+            trackUri = uri.split(":")[-1] if uri else None
+            return name, artist, startTimestamp, timePlayed, trackUri
 
-    def importMusicoletCSVExport(self, rows, known=[]):
+        yield from self._import(dataFunction, history, known, progressCallback)
+
+    def importMusicoletCSVExport(self, rows, known=[], progressCallback=None):
         def expand(rows):
             ### Data formatted in: FILE_PATH,TITLE,ARTIST,ALBUM,ALBUM_ARTIST,COMPOSER,GENRE,YEAR,DURATION_MS,PLAY_COUNT
             NAME = 1
@@ -121,9 +228,9 @@ class Importer:
                     name = song[NAME]
                     mainArtist = song[ARTISTS].split("/")[0]
                     timePlayed = int(song[DURATION_MS])
-                    play_count = int(song[PLAYCOUNT])
+                    playCount = int(song[PLAYCOUNT])
                     
-                    for _ in range(play_count):
+                    for _ in range(playCount):
                         startTimestamp = currentTime.strftime("%Y-%m-%d %H:%M:%S")
                         formatedData.append((
                             name,
@@ -139,6 +246,7 @@ class Importer:
             return formatedData
 
         def dataFunction(item):
-            return item
+            name, mainArtist, startTimestamp, timePlayed = item
+            return name, mainArtist, startTimestamp, timePlayed, None
 
-        yield from self._import(dataFunction, expand(rows), known)
+        yield from self._import(dataFunction, expand(rows), known, progressCallback)
