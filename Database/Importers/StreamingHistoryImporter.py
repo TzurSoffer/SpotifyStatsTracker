@@ -15,7 +15,8 @@ except ModuleNotFoundError:
 class Importer:
     # 500 allows for frequent progress bar updates in the UI and batches API pre-fetches
     # to avoid rate limits/network blocking without long delays.
-    CHUNK_SIZE = 500
+    CHUNK_SIZE = 1500
+    MAX_PREFETCH_WORKERS = 16
 
     def __init__(self, user="Tzur"):
         self.sp = SpotipyFree.Spotify()
@@ -31,8 +32,8 @@ class Importer:
         if trackUri:
             try:
                 return Client.formatTrack(self.sp.track(trackUri), embedPlaybackInfo=False)
-            except:
-                pass
+            except Exception as e:
+                print(f"URI lookup failed for {trackUri}, falling back to search: {parseError(e)}")
         return Client.formatTrack(self._searchForSong(name=name, artist=artist), embedPlaybackInfo=False)
 
     def _convertToList(self, export):
@@ -47,7 +48,7 @@ class Importer:
         except:
             pass
         return [], "None"
-    
+
     def getLengthOfImport(self, export):
         return len(self._convertToList(export)[0])
 
@@ -57,7 +58,7 @@ class Importer:
         if exportType == "spotifyAcountExport":
             return self.importAcountHistory(parsedHistory, known=known, progressCallback=progressCallback)
         if exportType == "spotifyExtendedExport":
-                return self.importExtendedHistory(parsedHistory, known=known, progressCallback=progressCallback)
+            return self.importExtendedHistory(parsedHistory, known=known, progressCallback=progressCallback)
         if exportType == "musicoletPremium":
             return self.importMusicoletCSVExport(parsedHistory, known=known, progressCallback=progressCallback)
         return []
@@ -68,7 +69,7 @@ class Importer:
             index[item["id"]] = item
             if len(item["artists"]) == 0:
                 continue
-            index[item["name"]+item["artists"][0]["name"]] = item
+            index[item["name"] + item["artists"][0]["name"]] = item
         return index
 
     def _parseHistory(self, dataFunction, history):
@@ -81,7 +82,7 @@ class Importer:
                 print(f"Error parsing item: {parseError(e)}")
                 continue
         return parsedItems
-    
+
     def _buildTrackId(self, trackUri, name, artist):
         if trackUri:
             return trackUri, True
@@ -93,19 +94,17 @@ class Importer:
         missingTracks = {}
         for name, artist, startTimestamp, timePlayed, trackUri in chunk:
             idKey, isUri = self._buildTrackId(trackUri, name, artist)
-            if idKey in known:
+            if idKey is None or idKey in known:
                 continue
-            
-            res = (name, artist, None)
-            if isUri:
-                res = (name, artist, trackUri)
+
+            res = (name, artist, trackUri if isUri else None)
             missingTracks[idKey] = res
         return missingTracks
 
     def _prefetchMissingTracks(self, missingTracks, chunkStart, totalItems, known, progressCallback):
         totalMissing = len(missingTracks)
         fetchedCount = 0
-        
+
         def fetchOne(key, info):
             name, artist, trackUri = info
             meta = None
@@ -115,15 +114,15 @@ class Importer:
                 print(f"Error fetching {name} by {artist}: {parseError(e)}")
             return key, meta
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.MAX_PREFETCH_WORKERS) as executor:
             futures = {executor.submit(fetchOne, k, val): k for k, val in missingTracks.items()}
             for future in concurrent.futures.as_completed(futures):
                 fetchedCount += 1
                 if progressCallback:
                     progressCallback(
-                        "running", 
-                        chunkStart + fetchedCount, 
-                        totalItems, 
+                        "running",
+                        chunkStart + fetchedCount,
+                        totalItems,
                         f"Pre-fetching batch metadata ({fetchedCount}/{totalMissing})..."
                     )
 
@@ -132,7 +131,7 @@ class Importer:
                     if formatted:
                         if key:
                             known[key] = formatted
-                        elif len(formatted["artists"]) > 0:
+                        if len(formatted["artists"]) > 0:
                             nameArtistKey = formatted["name"] + formatted["artists"][0]["name"]
                             known[nameArtistKey] = formatted
                 except Exception as e:
@@ -142,7 +141,7 @@ class Importer:
         name, artist, startTimestamp, timePlayed, trackUri = item
         try:
             matchedId, isUri = self._buildTrackId(trackUri, name, artist)
-            if matchedId:
+            if matchedId and matchedId in known:
                 meta = Client.embedPlayInfo(known[matchedId].copy(), startTimestamp, timePlayed)
             else:
                 if not name or not artist:
@@ -150,8 +149,9 @@ class Importer:
 
                 base = self._fetchTrackMeta(name, artist, trackUri)
                 known[base["id"]] = base
-                if isUri:
+                if trackUri:
                     known[trackUri] = base
+                known[name + artist] = base
                 meta = Client.embedPlayInfo(base.copy(), startTimestamp, timePlayed)
 
             return meta
@@ -161,17 +161,17 @@ class Importer:
 
     def _import(self, dataFunction, history, known=[], progressCallback=None):
         known = self.buildKnownIndex(known)
-        
+
         parsedItems = self._parseHistory(dataFunction, history)
         totalItems = len(parsedItems)
         if totalItems == 0:
             return
-            
+
         for chunkStart in range(0, totalItems, self.CHUNK_SIZE):
-            chunk = parsedItems[chunkStart : chunkStart + self.CHUNK_SIZE]
-            
+            chunk = parsedItems[chunkStart: chunkStart + self.CHUNK_SIZE]
+
             missingTracks = self._identifyMissingTracks(chunk, known)
-            
+
             # Fetch missing tracks in this chunk concurrently
             if missingTracks:
                 self._prefetchMissingTracks(
@@ -192,11 +192,11 @@ class Importer:
             endTimestamp = timeToInt(item["endTime"])
             timePlayed = item["msPlayed"]
 
-            startTimestamp = endTimestamp-timePlayed//1000
-            name=item["trackName"]
-            artist=item["artistName"]
+            startTimestamp = endTimestamp - timePlayed // 1000
+            name = item["trackName"]
+            artist = item["artistName"]
             return name, artist, startTimestamp, timePlayed, None
-        
+
         yield from self._import(dataFunction, history, known, progressCallback)
 
     def importExtendedHistory(self, history, known=[], progressCallback=None):
@@ -211,7 +211,7 @@ class Importer:
             uri = item.get("spotify_track_uri")
             trackUri = uri.split(":")[-1] if uri else None
             return name, artist, startTimestamp, timePlayed, trackUri
-        
+
         yield from self._import(dataFunction, history, known, progressCallback)
 
     def importMusicoletCSVExport(self, rows, known=[], progressCallback=None):

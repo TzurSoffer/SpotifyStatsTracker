@@ -23,7 +23,7 @@ except ModuleNotFoundError:
     from utils import parseError, convertToDatetime
 
 class Database:
-    PROGRESS_UPDATE_INTERVAL = 10   #< Write import progress to disk every N entries instead of every entry
+    PROGRESS_UPDATE_INTERVAL = 100   #< Write import progress to disk every N entries instead of every entry
 
     def __init__(self, user: str = "Tzur"):
         self.user = user
