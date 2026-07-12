@@ -291,9 +291,20 @@ button {
   appearance: none;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text);
   padding: 7px 28px 7px 12px;
+}
+
+.activity-year-picker select:hover,
+.activity-year-picker select:focus {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--accent);
+}
+
+.activity-year-picker select option {
+  background: var(--surface);
+  color: var(--text);
 }
 
 .activity-panel-header p {
