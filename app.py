@@ -415,30 +415,17 @@ class SpotifyDashboardApp:
             if not self.isLoggedIn:
                 return redirect(url_for("login", next=request.path))
 
-            page = int(request.args.get("page", 1) or 1)
-            searchQuery = request.args.get("q", "")
             customStart = request.args.get("startDate", "")
             customEnd = request.args.get("endDate", "")
             interval = request.args.get("interval", "day")
             if interval == "custom" and not (customStart and customEnd):
                 interval = "all time"
 
-            tracks = self.database.getEntriesFromNew()
-            if searchQuery:
-                self._embedIndices(tracks)
-            tracks = self._filterBySearch(tracks, searchQuery)
-            tracks, totalPages, startIndex = self.getPage(tracks, page)
-            tracks = self._embedSongsTextElements(tracks)
-
             intervalLabel = self._getIntervalLabel(interval, customStart, customEnd)
             startDate, endDate = self._getDateRange(interval, customStart, customEnd, default="day")
             stats = self.database.getOverallStats(startDate, endDate)
 
             chartEndDate = endDate or now()
-            heatmapStartDate = startDate
-            if heatmapStartDate is None or (chartEndDate - heatmapStartDate) < timedelta(days=365):
-                heatmapStartDate = chartEndDate - timedelta(days=365)
-
             heatmapSeries = self._embedActivityPeriodTextElements(
                 self.database.getIntervalHeatmap(None, None, every=24),
                 every=24,
@@ -465,19 +452,9 @@ class SpotifyDashboardApp:
             totalSongsChangeText, totalSongsChangeClass = self._getChangeText(stats["totalSongsPlayed"], stats["previousSongsPlayed"])
             totalListenChangeText, totalListenChangeClass = self._getChangeText(stats["totalDurationMs"], stats["previousDurationMs"])
 
-            prevUrl, nextUrl = self._getNeighboringUrls(
-                "dashboard",
-                page,
-                totalPages,
-                q=searchQuery,
-                interval=interval,
-                startDate=customStart,
-                endDate=customEnd,
-            )
-
             return render_template(
-                "tracks.html",
-                tracks=tracks,
+                "overview.html",
+                tracks=[],
                 totalSongsPlayed=stats["totalSongsPlayed"],
                 totalListenTime=totalDurationText,
                 totalSongsChangeText=totalSongsChangeText,
@@ -493,15 +470,77 @@ class SpotifyDashboardApp:
                 barSeries=barSeries,
                 barSeriesLabel=barSeriesLabel,
                 username=self.username,
+                page=1,
+                totalPages=1,
+                prevUrl=None,
+                nextUrl=None,
+                startIndex=0,
+                section="dashboard",
+                interval=interval,
+                customStart=customStart,
+                customEnd=customEnd,
+                activeTab="overview",
+            )
+
+        @self.app.route("/history", methods=["GET"])
+        def historyPage():
+            if not self.isLoggedIn:
+                return redirect(url_for("login", next=request.path))
+
+            page = int(request.args.get("page", 1) or 1)
+            searchQuery = request.args.get("q", "")
+            customStart = request.args.get("startDate", "")
+            customEnd = request.args.get("endDate", "")
+            interval = request.args.get("interval", "day")
+            if interval == "custom" and not (customStart and customEnd):
+                interval = "all time"
+
+            self._getDateRange(interval, customStart, customEnd, default="day")
+            tracks = self.database.getEntriesFromNew()
+            if searchQuery:
+                self._embedIndices(tracks)
+            tracks = self._filterBySearch(tracks, searchQuery)
+            tracks, totalPages, startIndex = self.getPage(tracks, page)
+            tracks = self._embedSongsTextElements(tracks)
+
+            prevUrl, nextUrl = self._getNeighboringUrls(
+                "historyPage",
+                page,
+                totalPages,
+                q=searchQuery,
+                interval=interval,
+                startDate=customStart,
+                endDate=customEnd,
+            )
+
+            return render_template(
+                "history.html",
+                tracks=tracks,
+                totalSongsPlayed=None,
+                totalListenTime=None,
+                totalSongsChangeText=None,
+                totalSongsChangeClass=None,
+                totalListenChangeText=None,
+                totalListenChangeClass=None,
+                currentTopSong=None,
+                currentTopArtist=None,
+                intervalLabel=None,
+                heatmapSeries=None,
+                heatmapYears=None,
+                selectedHeatmapYear=None,
+                barSeries=None,
+                barSeriesLabel=None,
+                username=self.username,
                 page=page,
                 totalPages=totalPages,
                 prevUrl=prevUrl,
                 nextUrl=nextUrl,
                 startIndex=startIndex,
-                section="dashboard",
+                section="history",
                 interval=interval,
                 customStart=customStart,
                 customEnd=customEnd,
+                activeTab="history",
             )
 
         @self.app.route("/charts", methods=["GET"])

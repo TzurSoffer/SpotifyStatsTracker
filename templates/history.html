@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-content">
+      <div class="history-intro">
+        <h2>Latest plays</h2>
+        <p>Browse the most recent songs from your listening history.</p>
+      </div>
+
+      <form class="filter-section dashboard-filter" method="get" action="{{ url_for('historyPage') }}">
+        <div class="filter-group filter-search">
+          <label for="dashboardSearch">Filter:</label>
+          <input
+            type="search"
+            id="dashboardSearch"
+            class="auto-search-focus"
+            name="q"
+            value="{{ request.args.get('q', '') }}"
+            placeholder="Filter songs, artists, playlists"
+            aria-label="Filter the history list"
+            oninput="scheduleSearchFilter('dashboardSearch', updateDashboardFilters)"
+            onkeydown="handleSearchKeydown(event, updateDashboardFilters)"
+          />
+        </div>
+
+        <noscript>
+          <button class="primary-button" type="submit">Apply</button>
+        </noscript>
+      </form>
+    </div>
+  </section>
+
+  <section class="track-list">
+    {% if tracks %}
+      {% for track in tracks %}
+        {% set item_number = track.get('absoluteIndex') if track.get('absoluteIndex') else (startIndex | default(0)) + loop.index %}
+        {% set section = 'dashboard' %}
+        {% include '_track_card.html' %}
+      {% endfor %}
+    {% else %}
+      <p class="loading">No history tracks found. Go listen to some music or import your history from the import section.</p>
+    {% endif %}
+  </section>
+
+  <section class="pagination">
+    {% if prevUrl %}
+      <a class="button" href="{{ prevUrl }}">Previous</a>
+    {% endif %}
+    <span>Page {{ page }} of {{ totalPages }}</span>
+    {% if nextUrl %}
+      <a class="button" href="{{ nextUrl }}">Next</a>
+    {% endif %}
+  </section>
+
+  <script>
+    function updateDashboardFilters() {
+      const searchInput = document.getElementById('dashboardSearch');
+      const params = new URLSearchParams(window.location.search);
+      const searchQuery = searchInput ? searchInput.value : '';
+
+      if (searchQuery.trim()) {
+        params.set('q', searchQuery);
+      } else {
+        params.delete('q');
+      }
+
+      params.delete('page');
+      window.location = window.location.pathname + '?' + params.toString();
+    }
+  </script>
+{% endblock %}

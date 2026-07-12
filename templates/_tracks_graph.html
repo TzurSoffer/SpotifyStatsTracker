@@ -2,11 +2,27 @@
   <div class="activity-panel-header">
     <div>
       <h2>Activity</h2>
-      <p>GitHub-style contribution view and a matching {{ barSeriesLabel | lower }} chart for {{ intervalLabel }}.</p>
     </div>
   </div>
 
   {% if heatmapSeries and barSeries %}
+    <div class="activity-section">
+      <div class="activity-section-header">
+        <div class="activity-section-title">
+          <h3>{{ barSeriesLabel }}</h3>
+        </div>
+        <div class="activity-detail activity-detail-bar" id="activityBarDetail">Hover a bar to see play count and play time.</div>
+      </div>
+      <div class="activity-bar-chart-wrap">
+        <div class="activity-bar-chart" id="activityBarChart" aria-label="Listening bar graph"></div>
+      </div>
+      <div class="activity-legend activity-legend-bar" aria-label="Bar graph legend">
+        <span class="activity-legend-key"><span class="activity-legend-line activity-legend-line-plays"></span> Plays</span>
+        <span class="activity-legend-key"><span class="activity-legend-line activity-legend-line-time"></span> Time listened</span>
+        <span class="activity-legend-key"><span class="activity-legend-swatch activity-legend-swatch-bar"></span> Daily bucket</span>
+      </div>
+    </div>
+
     <div class="activity-section">
       <div class="activity-section-header">
         <div class="activity-section-title">
@@ -33,23 +49,6 @@
         <span class="activity-legend-swatch level-3" title="High activity"></span>
         <span class="activity-legend-swatch level-4" title="Peak activity"></span>
         <span>More</span>
-      </div>
-    </div>
-
-    <div class="activity-section">
-      <div class="activity-section-header">
-        <div class="activity-section-title">
-          <h3>{{ barSeriesLabel }}</h3>
-        </div>
-        <div class="activity-detail activity-detail-bar" id="activityBarDetail">Hover a bar to see play count and play time.</div>
-      </div>
-      <div class="activity-bar-chart-wrap">
-        <div class="activity-bar-chart" id="activityBarChart" aria-label="Listening bar graph"></div>
-      </div>
-      <div class="activity-legend activity-legend-bar" aria-label="Bar graph legend">
-        <span class="activity-legend-key"><span class="activity-legend-line activity-legend-line-plays"></span> Plays</span>
-        <span class="activity-legend-key"><span class="activity-legend-line activity-legend-line-time"></span> Time listened</span>
-        <span class="activity-legend-key"><span class="activity-legend-swatch activity-legend-swatch-bar"></span> Daily bucket</span>
       </div>
     </div>
 

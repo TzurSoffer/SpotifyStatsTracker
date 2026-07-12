@@ -26,6 +26,7 @@
       <nav class="nav-links">
         {% set currentQuery = request.args.get('q', '') %}
         <a href="{{ url_for('dashboard', q=currentQuery) if currentQuery else url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('historyPage', q=currentQuery) if currentQuery else url_for('historyPage') }}">History</a>
         <a href="{{ url_for('topSongsPage', q=currentQuery) if currentQuery else url_for('topSongsPage') }}">Top Songs</a>
         <a href="{{ url_for('topArtistsPage', q=currentQuery) if currentQuery else url_for('topArtistsPage') }}">Top Artists</a>
         <a href="{{ url_for('importPage') }}">Import</a>

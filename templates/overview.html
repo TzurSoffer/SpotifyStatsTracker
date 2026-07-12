@@ -1,0 +1,132 @@
+{% extends "layout.html" %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-content">
+      <form class="filter-section dashboard-filter" method="get" action="{{ url_for('dashboard') }}">
+        <div class="filter-group">
+          <label for="interval">Time Period:</label>
+          <select id="interval" name="interval" onchange="updateDashboardInterval()">
+            <option value="all time" {% if interval == 'all time' %}selected{% endif %}>All Time</option>
+            <option value="day" {% if interval == 'day' %}selected{% endif %}>Last Day</option>
+            <option value="week" {% if interval == 'week' %}selected{% endif %}>Last Week</option>
+            <option value="month" {% if interval == 'month' %}selected{% endif %}>Last Month</option>
+            <option value="year" {% if interval == 'year' %}selected{% endif %}>Last Year</option>
+            <option value="5years" {% if interval == '5years' %}selected{% endif %}>Last 5 Years</option>
+            <option value="custom" {% if interval == 'custom' %}selected{% endif %}>Custom Date Range</option>
+          </select>
+        </div>
+
+        <div class="filter-group custom-dates" id="dashboardCustomDates" {% if interval != 'custom' %}style="display: none;"{% endif %}>
+          <label for="startDate">From:</label>
+          <input type="date" id="startDate" name="startDate" value="{{ customStart }}" onchange="updateDashboardDateFilter()">
+          <label for="endDate">To:</label>
+          <input type="date" id="endDate" name="endDate" value="{{ customEnd }}" onchange="updateDashboardDateFilter()">
+        </div>
+
+        <noscript>
+          <button class="primary-button" type="submit">Apply</button>
+        </noscript>
+      </form>
+
+      <div class="dashboard-summary">
+        <div class="summary-card">
+          <h2>Total songs played</h2>
+          <p class="summary-value">{{ totalSongsPlayed or 0 }}</p>
+          {% if totalSongsChangeText %}
+            <div class="summary-change {{ totalSongsChangeClass }}">{{ totalSongsChangeText }}</div>
+          {% endif %}
+        </div>
+        <div class="summary-card">
+          <h2>Total listen time</h2>
+          <p class="summary-value">{{ totalListenTime or "0:00" }}</p>
+          {% if totalListenChangeText %}
+            <div class="summary-change {{ totalListenChangeClass }}">{{ totalListenChangeText }}</div>
+          {% endif %}
+        </div>
+        <div class="summary-card">
+          <h2>Top song</h2>
+          {% if currentTopSong %}
+            <div class="summary-item">
+              <strong>{{ currentTopSong.name }}</strong>
+              <span>{{ currentTopSong.totalTimeListenedText }} listened in this period</span>
+            </div>
+          {% else %}
+            <p>No songs played in this period.</p>
+          {% endif %}
+        </div>
+        <div class="summary-card">
+          <h2>Top artist</h2>
+          {% if currentTopArtist %}
+            <div class="summary-item">
+              <strong>{{ currentTopArtist.name }}</strong>
+              <span>{{ currentTopArtist.totalTimeListenedText }} listened in this period</span>
+            </div>
+          {% else %}
+            <p>No artists played in this period.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {% include '_tracks_graph.html' %}
+
+  <script>
+    function updateDashboardInterval() {
+      const intervalSelect = document.getElementById('interval');
+      if (!intervalSelect) {
+        return;
+      }
+
+      const interval = intervalSelect.value;
+      const customDates = document.getElementById('dashboardCustomDates');
+
+      if (interval === 'custom') {
+        customDates.style.display = 'flex';
+        return;
+      }
+
+      customDates.style.display = 'none';
+      updateDashboardFilters();
+    }
+
+    function updateDashboardDateFilter() {
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+
+      if (startDate && endDate) {
+        updateDashboardFilters(true);
+      }
+    }
+
+    function updateDashboardFilters(forceCustom = false) {
+      const intervalSelect = document.getElementById('interval');
+      const interval = intervalSelect ? intervalSelect.value : '';
+      const params = new URLSearchParams(window.location.search);
+
+      if (intervalSelect && (interval === 'custom' || forceCustom)) {
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+
+        if (!startDate || !endDate) {
+          return;
+        }
+
+        params.set('interval', 'custom');
+        params.set('startDate', startDate);
+        params.set('endDate', endDate);
+      } else if (intervalSelect) {
+        params.set('interval', interval);
+        params.delete('startDate');
+        params.delete('endDate');
+      } else {
+        params.delete('interval');
+        params.delete('startDate');
+        params.delete('endDate');
+      }
+
+      params.delete('page');
+      window.location = window.location.pathname + '?' + params.toString();
+    }
+  </script>
+{% endblock %}

@@ -2,21 +2,30 @@
 {% block content %}
   <section class="hero">
     <div class="hero-content">
-      <form class="filter-section dashboard-filter" method="get" action="/">
-        <div class="filter-group filter-search">
-          <label for="dashboardSearch">Search:</label>
-          <input
-            type="search"
-            id="dashboardSearch"
-            class="auto-search-focus"
-            name="q"
-            value="{{ request.args.get('q', '') }}"
-            placeholder="Search songs, artists, playlists"
-            aria-label="Search the current page"
-            oninput="scheduleSearchFilter('dashboardSearch', updateDashboardFilters)"
-            onkeydown="handleSearchKeydown(event, updateDashboardFilters)"
-          />
+      {% if activeTab == 'history' %}
+        <div class="history-intro">
+          <h2>Latest plays</h2>
+          <p>Browse the most recent songs from your listening history.</p>
         </div>
+      {% endif %}
+
+      <form class="filter-section dashboard-filter" method="get" action="{{ url_for('dashboard') if activeTab == 'overview' else url_for('historyPage') }}">
+        {% if activeTab == 'history' %}
+          <div class="filter-group filter-search">
+            <label for="dashboardSearch">Filter:</label>
+            <input
+              type="search"
+              id="dashboardSearch"
+              class="auto-search-focus"
+              name="q"
+              value="{{ request.args.get('q', '') }}"
+              placeholder="Filter songs, artists, playlists"
+              aria-label="Filter the history list"
+              oninput="scheduleSearchFilter('dashboardSearch', updateDashboardFilters)"
+              onkeydown="handleSearchKeydown(event, updateDashboardFilters)"
+            />
+          </div>
+        {% endif %}
 
         <div class="filter-group">
           <label for="interval">Time Period:</label>
@@ -42,74 +51,86 @@
           <button class="primary-button" type="submit">Apply</button>
         </noscript>
       </form>
-      <div class="dashboard-summary">
-        <div class="summary-card">
-          <h2>Total songs played</h2>
-          <p class="summary-value">{{ totalSongsPlayed or 0 }}</p>
-          {% if totalSongsChangeText %}
-            <div class="summary-change {{ totalSongsChangeClass }}">{{ totalSongsChangeText }}</div>
-          {% endif %}
+
+      {% if activeTab == 'overview' %}
+        <div class="dashboard-summary">
+          <div class="summary-card">
+            <h2>Total songs played</h2>
+            <p class="summary-value">{{ totalSongsPlayed or 0 }}</p>
+            {% if totalSongsChangeText %}
+              <div class="summary-change {{ totalSongsChangeClass }}">{{ totalSongsChangeText }}</div>
+            {% endif %}
+          </div>
+          <div class="summary-card">
+            <h2>Total listen time</h2>
+            <p class="summary-value">{{ totalListenTime or "0:00" }}</p>
+            {% if totalListenChangeText %}
+              <div class="summary-change {{ totalListenChangeClass }}">{{ totalListenChangeText }}</div>
+            {% endif %}
+          </div>
+          <div class="summary-card">
+            <h2>Top song</h2>
+            {% if currentTopSong %}
+              <div class="summary-item">
+                <strong>{{ currentTopSong.name }}</strong>
+                <span>{{ currentTopSong.totalTimeListenedText }} listened in this period</span>
+              </div>
+            {% else %}
+              <p>No songs played in this period.</p>
+            {% endif %}
+          </div>
+          <div class="summary-card">
+            <h2>Top artist</h2>
+            {% if currentTopArtist %}
+              <div class="summary-item">
+                <strong>{{ currentTopArtist.name }}</strong>
+                <span>{{ currentTopArtist.totalTimeListenedText }} listened in this period</span>
+              </div>
+            {% else %}
+              <p>No artists played in this period.</p>
+            {% endif %}
+          </div>
         </div>
-        <div class="summary-card">
-          <h2>Total listen time</h2>
-          <p class="summary-value">{{ totalListenTime or "0:00" }}</p>
-          {% if totalListenChangeText %}
-            <div class="summary-change {{ totalListenChangeClass }}">{{ totalListenChangeText }}</div>
-          {% endif %}
-        </div>
-        <div class="summary-card">
-          <h2>Top song</h2>
-          {% if currentTopSong %}
-            <div class="summary-item">
-              <strong>{{ currentTopSong.name }}</strong>
-              <span>{{ currentTopSong.totalTimeListenedText }} listened in this period</span>
-            </div>
-          {% else %}
-            <p>No songs played in this period.</p>
-          {% endif %}
-        </div>
-        <div class="summary-card">
-          <h2>Top artist</h2>
-          {% if currentTopArtist %}
-            <div class="summary-item">
-              <strong>{{ currentTopArtist.name }}</strong>
-              <span>{{ currentTopArtist.totalTimeListenedText }} listened in this period</span>
-            </div>
-          {% else %}
-            <p>No artists played in this period.</p>
-          {% endif %}
-        </div>
-      </div>
+      {% endif %}
     </div>
   </section>
-  
+
+  {% if activeTab == 'overview' %}
     {% include '_tracks_graph.html' %}
+  {% endif %}
 
-  <section class="track-list">
-    {% if tracks %}
-      {% for track in tracks %}
-        {% set item_number = track.get('absoluteIndex') if track.get('absoluteIndex') else (startIndex | default(0)) + loop.index %}
-        {% set section = 'dashboard' %}
-        {% include '_track_card.html' %}
-      {% endfor %}
-    {% else %}
-      <p class="loading">No history tracks found. Go listen to some music or import your history from the import section.</p>
-    {% endif %}
-  </section>
+  {% if activeTab == 'history' %}
+    <section class="track-list">
+      {% if tracks %}
+        {% for track in tracks %}
+          {% set item_number = track.get('absoluteIndex') if track.get('absoluteIndex') else (startIndex | default(0)) + loop.index %}
+          {% set section = 'dashboard' %}
+          {% include '_track_card.html' %}
+        {% endfor %}
+      {% else %}
+        <p class="loading">No history tracks found. Go listen to some music or import your history from the import section.</p>
+      {% endif %}
+    </section>
 
-  <section class="pagination">
-    {% if prevUrl %}
-      <a class="button" href="{{ prevUrl }}">Previous</a>
-    {% endif %}
-    <span>Page {{ page }} of {{ totalPages }}</span>
-    {% if nextUrl %}
-      <a class="button" href="{{ nextUrl }}">Next</a>
-    {% endif %}
-  </section>
+    <section class="pagination">
+      {% if prevUrl %}
+        <a class="button" href="{{ prevUrl }}">Previous</a>
+      {% endif %}
+      <span>Page {{ page }} of {{ totalPages }}</span>
+      {% if nextUrl %}
+        <a class="button" href="{{ nextUrl }}">Next</a>
+      {% endif %}
+    </section>
+  {% endif %}
 
   <script>
     function updateDashboardInterval() {
-      const interval = document.getElementById('interval').value;
+      const intervalSelect = document.getElementById('interval');
+      if (!intervalSelect) {
+        return;
+      }
+
+      const interval = intervalSelect.value;
       const customDates = document.getElementById('dashboardCustomDates');
 
       if (interval === 'custom') {
@@ -131,7 +152,8 @@
     }
 
     function updateDashboardFilters(forceCustom = false) {
-      const interval = document.getElementById('interval').value;
+      const intervalSelect = document.getElementById('interval');
+      const interval = intervalSelect ? intervalSelect.value : '';
       const searchInput = document.getElementById('dashboardSearch');
       const params = new URLSearchParams(window.location.search);
       const searchQuery = searchInput ? searchInput.value : '';
@@ -142,7 +164,7 @@
         params.delete('q');
       }
 
-      if (interval === 'custom' || forceCustom) {
+      if (intervalSelect && (interval === 'custom' || forceCustom)) {
         const startDate = document.getElementById('startDate').value;
         const endDate = document.getElementById('endDate').value;
 
@@ -153,8 +175,12 @@
         params.set('interval', 'custom');
         params.set('startDate', startDate);
         params.set('endDate', endDate);
-      } else {
+      } else if (intervalSelect) {
         params.set('interval', interval);
+        params.delete('startDate');
+        params.delete('endDate');
+      } else {
+        params.delete('interval');
         params.delete('startDate');
         params.delete('endDate');
       }

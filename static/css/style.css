@@ -128,6 +128,45 @@ button {
   max-width: 60ch;
 }
 
+.dashboard-tabs {
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dashboard-tab {
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.dashboard-tab:hover,
+.dashboard-tab.is-active {
+  background: rgba(251, 113, 123, 0.18);
+  color: #ffffff;
+}
+
+.history-intro {
+  margin-bottom: 18px;
+}
+
+.history-intro h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.history-intro p {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
 .dashboard-summary {
   display: flex;
   flex-wrap: nowrap;
