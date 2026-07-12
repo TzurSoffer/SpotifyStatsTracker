@@ -367,7 +367,7 @@ button {
 
 .activity-bar-chart {
   position: relative;
-  min-height: 280px;
+  min-height: 240px;
   margin-top: 8px;
   min-width: 100%;
   width: 100%;
@@ -376,7 +376,7 @@ button {
 .activity-bar-svg {
   display: block;
   width: 100%;
-  height: 280px;
+  height: 240px;
 }
 
 .activity-axis-line {
@@ -392,7 +392,15 @@ button {
 
 .activity-axis-label {
   fill: var(--muted);
-  font-size: 11px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.activity-axis-title {
+  fill: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .activity-bar-rect {
@@ -438,24 +446,58 @@ button {
 .activity-bar-chart-wrap {
   padding-top: 6px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
 }
 
 .activity-legend {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-top: 10px;
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.activity-legend-heatmap {
+  justify-content: flex-start;
+}
+
+.activity-legend-bar {
+  justify-content: flex-start;
+}
+
+.activity-legend-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .activity-legend-swatch {
   width: 12px;
   height: 12px;
   border-radius: 4px;
+}
+
+.activity-legend-swatch-bar {
+  background: rgba(251, 113, 123, 0.78);
+  border: 1px solid rgba(251, 113, 123, 1);
+}
+
+.activity-legend-line {
+  width: 18px;
+  height: 0;
+  border-top: 2px solid currentColor;
+  display: inline-block;
+}
+
+.activity-legend-line-plays {
+  color: rgba(251, 113, 123, 0.95);
+}
+
+.activity-legend-line-time {
+  color: rgba(104, 211, 145, 0.95);
 }
 
 .change-positive {
