@@ -139,6 +139,62 @@ class SpotifyDashboardApp:
     def _embedArtistsTextElements(self, songs, sortBy=None, totalPlays=0, totalMs=0) -> list[dict]:
         return [self._embedArtistTextElement(song, sortBy, totalPlays, totalMs) for song in songs]
 
+    def _embedActivityPeriodTextElements(self, activityPeriods, every: int = 24) -> list[dict]:
+        embedded = []
+        for periodStart, periodEnd, totalTimeMs, playCount in activityPeriods:
+            startDate = convertToDatetime(periodStart)
+            endDate = convertToDatetime(periodEnd)
+            if every <= 1:
+                dateText = startDate.strftime("%H:%M")
+                tooltipDate = f"{startDate.strftime('%A, %b %d, %Y %H:%M')} - {endDate.strftime('%H:%M')}"
+            elif every < 24 * 7:
+                dateText = startDate.strftime("%b %d")
+                tooltipDate = f"{startDate.strftime('%A, %b %d, %Y')} - {endDate.strftime('%A, %b %d, %Y')}"
+            elif every < 24 * 30:
+                dateText = startDate.strftime("Week of %b %d")
+                tooltipDate = f"{startDate.strftime('%A, %b %d, %Y')} - {endDate.strftime('%A, %b %d, %Y')}"
+            elif every < 24 * 365:
+                dateText = startDate.strftime("%b %Y")
+                tooltipDate = f"{startDate.strftime('%B %Y')} - {endDate.strftime('%B %Y')}"
+            else:
+                dateText = startDate.strftime("%Y")
+                tooltipDate = f"{startDate.strftime('%B %Y')} - {endDate.strftime('%B %Y')}"
+
+            embedded.append({
+                "date": dateToString(startDate),
+                "dateText": dateText,
+                "tooltipDate": tooltipDate,
+                "playCount": playCount,
+                "totalTimeMs": totalTimeMs,
+                "totalTimeText": msToString(totalTimeMs),
+            })
+        return embedded
+
+    def _getActivityBarGrouping(self, interval: str, startDate, endDate) -> tuple[int, str]:
+        if interval == "day":
+            return 1, "Hourly activity"
+        if interval == "week":
+            return 24, "Daily activity"
+        if interval == "month":
+            return 24 * 7, "Weekly activity"
+        if interval == "year":
+            return 24 * 30, "Monthly activity"
+        if interval in ("5years", "all time"):
+            return 24 * 365, "Yearly activity"
+
+        if startDate and endDate:
+            spanDays = max(1, int((endDate - startDate).total_seconds() // 86400))
+            if spanDays <= 1:
+                return 1, "Hourly activity"
+            if spanDays <= 7:
+                return 24, "Daily activity"
+            if spanDays <= 31:
+                return 24 * 7, "Weekly activity"
+            if spanDays <= 365:
+                return 24 * 30, "Monthly activity"
+
+        return 24, "Daily activity"
+
     def _buildPageUrl(self, endpoint, page, **queryArgs):
         cleanArgs = {key: value for key, value in queryArgs.items() if value not in (None, "")}
         cleanArgs["page"] = page
@@ -376,7 +432,30 @@ class SpotifyDashboardApp:
 
             intervalLabel = self._getIntervalLabel(interval, customStart, customEnd)
             startDate, endDate = self._getDateRange(interval, customStart, customEnd, default="day")
-            stats = self.database.getOverallStats(startDate, endDate) 
+            stats = self.database.getOverallStats(startDate, endDate)
+
+            chartEndDate = endDate or now()
+            heatmapStartDate = startDate
+            if heatmapStartDate is None or (chartEndDate - heatmapStartDate) < timedelta(days=365):
+                heatmapStartDate = chartEndDate - timedelta(days=365)
+
+            heatmapSeries = self._embedActivityPeriodTextElements(
+                self.database.getIntervalHeatmap(None, None, every=24),
+                every=24,
+            )
+
+            barEvery, barSeriesLabel = self._getActivityBarGrouping(interval, startDate, endDate)
+            barStartDate = startDate
+            barEndDate = min(chartEndDate, now()) if chartEndDate else now()
+            barSeries = self._embedActivityPeriodTextElements(
+                self.database.getIntervalHeatmap(barStartDate, barEndDate, every=barEvery),
+                every=barEvery,
+            )
+
+            heatmapYears = self.database.getAvailableYears() or [chartEndDate.year]
+            selectedHeatmapYear = chartEndDate.year
+            if selectedHeatmapYear not in heatmapYears:
+                selectedHeatmapYear = heatmapYears[-1]
 
             totalDurationText = msToString(stats["totalDurationMs"])
 
@@ -408,6 +487,11 @@ class SpotifyDashboardApp:
                 currentTopSong=currentTopSong,
                 currentTopArtist=currentTopArtist,
                 intervalLabel=intervalLabel,
+                heatmapSeries=heatmapSeries,
+                heatmapYears=heatmapYears,
+                selectedHeatmapYear=selectedHeatmapYear,
+                barSeries=barSeries,
+                barSeriesLabel=barSeriesLabel,
                 username=self.username,
                 page=page,
                 totalPages=totalPages,
@@ -419,6 +503,10 @@ class SpotifyDashboardApp:
                 customStart=customStart,
                 customEnd=customEnd,
             )
+
+        @self.app.route("/charts", methods=["GET"])
+        def chartsPage():
+            return redirect(url_for("dashboard", **request.args))
 
         @self.app.route("/top-songs", methods=["GET"])
         def topSongsPage():

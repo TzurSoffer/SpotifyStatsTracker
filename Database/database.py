@@ -116,14 +116,6 @@ class Database:
         """Save playlist id to name mappings to the JSON file."""
         self.playlistsCache = playlists
         self._save(self.playlistsPath, playlists)
-
-    def playlistName(self, playlistUri: str | None) -> str | None:
-        """Return the playlist name for a Spotify playlist URI or id, caching it on first lookup."""
-        if not playlistUri:
-            return None
-        type, playlistId = playlistUri.split(":", 1)
-        playlists = self._loadPlaylists()
-        return playlists[type].get(playlistId, None)
     
     def _addTrack(self, tracks, track):
         tracks[track["id"]] = track
@@ -214,6 +206,11 @@ class Database:
     def getEntriesCount(self) -> int:
         """Return total number of entries in the database."""
         return len(self._loadEntries())
+
+    def getAvailableYears(self) -> list[int]:
+        entries = self._loadEntries()
+        years = sorted({convertToDatetime(entry["playedAt"]).year for entry in entries if entry.get("playedAt") is not None})
+        return years
     
     def getEntriesFromNew(self, count: int | None = None, startIndex: int = 0, fullPagination: bool = True) -> list:
         """ Return the latest `count` entries from history, sorted from newest to oldest. If count is None, return all entries. """
@@ -244,6 +241,14 @@ class Database:
             if fullPagination:
                 return self._paginateEntries(slicedEntries)
             return slicedEntries
+
+    def playlistName(self, playlistUri: str | None) -> str | None:
+        """Return the playlist name for a Spotify playlist URI or id, caching it on first lookup."""
+        if not playlistUri:
+            return None
+        type, playlistId = playlistUri.split(":", 1)
+        playlists = self._loadPlaylists()
+        return playlists[type].get(playlistId, None)
 
     def writeProgress(self, status: str, current: int = 0, total: int = 0, message: str = "", error: bool = False):
         payload = {
@@ -502,6 +507,76 @@ class Database:
         artists = self.getArtistsStats(startDate, endDate)
         compKeys = (by, "totalTimeListened", "name")
         return self._sortTopStats(artists, compKeys, by)
+
+    def getIntervalHeatmap(self, startDate: datetime.datetime = None, endDate: datetime.datetime = None, every: int = 24) -> list[tuple[datetime.datetime, datetime.datetime, float, int]]:
+        """
+        Args:
+            startDate: The beginning of the time range to analyze. If
+                ``None``, the timestamp of the first entry is used.
+            endDate: The end of the time range to analyze. If ``None``,
+                all entries after ``startDate`` are included.
+            every: The length of each interval in hours.
+
+        Returns:
+            - (intervalStart, intervalEnd, totalTimePlayed, playCount) for each interval.
+            - ``intervalStart`` is the inclusive start of the interval.
+            - ``intervalEnd`` is the exclusive end of the interval.
+            - ``totalTimePlayed`` is the sum of ``timePlayed`` for all
+            entries in the interval.
+            - ``playCount`` is the number of entries in the interval.
+        """
+        entries = self.filterByInterval(self._loadEntries(), startDate, endDate)
+        intervalLength = datetime.timedelta(hours=every)
+
+        if not entries:
+            if startDate is None or endDate is None:
+                return []
+
+            startDate = startDate.replace(minute=0, second=0, microsecond=0)
+            results = []
+            intervalStart = startDate
+            intervalEnd = intervalStart + intervalLength
+
+            while intervalStart < endDate:
+                results.append((intervalStart, intervalEnd, 0, 0))
+                intervalStart = intervalEnd
+                intervalEnd = intervalStart + intervalLength
+
+            return results
+
+        # entries.sort(key=lambda e: e["playedAt"]) #< Database should already be sorted
+        if startDate is None:
+            startDate = convertToDatetime(entries[0]["playedAt"])
+        startDate = startDate.replace(minute=0, second=0, microsecond=0)
+
+        results = []
+
+        totalTime = 0
+        playCount = 0
+        intervalEnd = startDate + intervalLength
+
+        for entry in entries:
+            playedAt = convertToDatetime(entry["playedAt"])
+
+            while playedAt >= intervalEnd:  #< Needs to be while because there may be gaps in the data, so we need to fill in all the empty intervals
+                results.append((startDate, intervalEnd, totalTime, playCount))
+                startDate = intervalEnd
+                intervalEnd = startDate + intervalLength
+                totalTime = 0
+                playCount = 0
+            totalTime += entry["timePlayed"]
+            playCount += 1
+
+        while endDate is not None and intervalEnd < endDate:
+            results.append((startDate, intervalEnd, totalTime, playCount))
+            startDate = intervalEnd
+            intervalEnd = startDate + intervalLength
+            totalTime = 0
+            playCount = 0
+
+        results.append((startDate, intervalEnd, totalTime, playCount))
+
+        return results
 
     def startListener(self, cookiesFile):
         self.listener = Listener(cookiesFile)
