@@ -11,7 +11,7 @@
 
       <form class="filter-section dashboard-filter" method="get" action="{{ url_for('dashboard') if activeTab == 'overview' else url_for('historyPage') }}">
         {% if activeTab == 'history' %}
-          <div class="filter-group filter-search">
+          <div class="filter-search">
             <label for="dashboardSearch">Filter:</label>
             <input
               type="search"

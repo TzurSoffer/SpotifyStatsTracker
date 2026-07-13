@@ -1133,6 +1133,10 @@ progress::-moz-progress-bar {
 .filter-search {
   flex: 1 1 100%;
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
 }
 
 .filter-search input[type="search"] {
@@ -1256,14 +1260,12 @@ progress::-moz-progress-bar {
     flex: 1;
     width: 100%;
     min-width: 0;
-    max-width: 110px;
-    padding: 7px 10px;
-    font-size: 0.9rem;
+    max-width: 140px;
+    padding: 8px 12px;
   }
 
   .topbar-search button {
-    padding: 7px 10px;
-    font-size: 0.9rem;
+    padding: 8px 12px;
   }
 
   .activity-section-header,

@@ -1,5 +1,5 @@
 <section class="filter-section">
-<div class="filter-group filter-search">
+<div class="filter-search">
     <label for="searchQuery">Search:</label>
     <input type="search" id="searchQuery" class="auto-search-focus" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search songs, artists, playlists" aria-label="Search the current page" oninput="scheduleSearchFilter('searchQuery', updateSearchFilter)" onkeydown="handleSearchKeydown(event, updateSearchFilter)">
 </div>

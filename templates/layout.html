@@ -25,11 +25,12 @@
       </div>
       <nav class="nav-links">
         {% set currentQuery = request.args.get('q', '') %}
-        <a href="{{ url_for('dashboard', q=currentQuery) if currentQuery else url_for('dashboard') }}">Dashboard</a>
-        <a href="{{ url_for('historyPage', q=currentQuery) if currentQuery else url_for('historyPage') }}">History</a>
-        <a href="{{ url_for('topSongsPage', q=currentQuery) if currentQuery else url_for('topSongsPage') }}">Top Songs</a>
-        <a href="{{ url_for('topArtistsPage', q=currentQuery) if currentQuery else url_for('topArtistsPage') }}">Top Artists</a>
-        <a href="{{ url_for('importPage') }}">Import</a>
+        {% set currentEndpoint = request.endpoint %}
+        <a href="{{ url_for('dashboard', q=currentQuery) if currentQuery else url_for('dashboard') }}" class="{{ 'active' if currentEndpoint == 'dashboard' else '' }}">Dashboard</a>
+        <a href="{{ url_for('historyPage', q=currentQuery) if currentQuery else url_for('historyPage') }}" class="{{ 'active' if currentEndpoint == 'historyPage' else '' }}">History</a>
+        <a href="{{ url_for('topSongsPage', q=currentQuery) if currentQuery else url_for('topSongsPage') }}" class="{{ 'active' if currentEndpoint == 'topSongsPage' else '' }}">Top Songs</a>
+        <a href="{{ url_for('topArtistsPage', q=currentQuery) if currentQuery else url_for('topArtistsPage') }}" class="{{ 'active' if currentEndpoint == 'topArtistsPage' else '' }}">Top Artists</a>
+        <a href="{{ url_for('importPage') }}" class="{{ 'active' if currentEndpoint == 'importPage' else '' }}">Import</a>
         <a href="/login">Logout</a>
       </nav>
     </header>
