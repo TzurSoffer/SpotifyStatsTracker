@@ -47,7 +47,7 @@
           <h2>Top song</h2>
           {% if currentTopSong %}
             <div class="summary-item">
-              <strong>{{ currentTopSong.name }}</strong>
+              <strong class="summary-value">{{ currentTopSong.name }}</strong>
               <span>{{ currentTopSong.totalTimeListenedText }} listened in this period</span>
             </div>
           {% else %}
@@ -58,7 +58,7 @@
           <h2>Top artist</h2>
           {% if currentTopArtist %}
             <div class="summary-item">
-              <strong>{{ currentTopArtist.name }}</strong>
+              <strong class="summary-value">{{ currentTopArtist.name }}</strong>
               <span>{{ currentTopArtist.totalTimeListenedText }} listened in this period</span>
             </div>
           {% else %}
