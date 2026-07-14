@@ -64,30 +64,7 @@
         {% endif %}
         
         {% if section != 'top_artists' %}
-        <div class="track-meta">
-          {% if track.get('artists') %}
-            {% set artist_ids = [] %}
-            {% for artist in track.get('artists', []) %}
-              {% if artist.get('id') %}
-                {% set _ = artist_ids.append(artist.get('id')) %}
-              {% endif %}
-            {% endfor %}
-            {% if artist_ids %}
-              {% for artist in track.get('artists', []) %}
-                {% if artist.get('id') %}
-                  <a href="/artist/{{ artist.get('id') or '' }}">{{ artist.get('name', '') }}</a>{% if not loop.last %}, {% endif %}
-                {% else %}
-                  {{ artist.get('name', '') }}{% if not loop.last %}, {% endif %}
-                {% endif %}
-              {% endfor %}
-            {% else %}
-              {{ track.get('artistsText') or (track.get('artists') and (', '.join(track.get('artists'))) ) or track.get('artist','') }}
-            {% endif %}
-          {% else %}
-            {{ track.get('artistsText') or (track.get('artists') and (', '.join(track.get('artists'))) ) or track.get('artist','') }}
-          {% endif %}
-          · {{ (track.get('album') and track.get('album').get('name')) or '' }}
-        </div>
+        <div class="track-meta">{{ track.get('artistsText') or (track.get('artists') and (', '.join(track.get('artists'))) ) or track.get('artist','') }} · {{ (track.get('album') and track.get('album').get('name')) or '' }}</div>
         {% endif %}
         
         <!-- Played at - only for dashboard -->
