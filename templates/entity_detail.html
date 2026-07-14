@@ -1,0 +1,88 @@
+{% extends "layout.html" %}
+{% block content %}
+  <section class="entity-hero">
+    <div class="entity-hero-media">
+      {% if entityType == 'artist' %}
+        <img class="entity-cover" loading="lazy" src="/img/{{ username }}/artists/{{ entity.get('imageId') }}.jpeg" alt="{{ entity.get('name', '') }}" onerror="this.style.display='none'" />
+      {% else %}
+        <img class="entity-cover" loading="lazy" src="/img/{{ username }}/tracks/{{ entity.get('imageId') }}.jpeg" alt="{{ entity.get('name', '') }}" onerror="this.style.display='none'" />
+      {% endif %}
+      <div class="entity-hero-copy">
+        <p class="entity-kicker">{{ 'Artist' if entityType == 'artist' else 'Playlist' if entityType == 'playlist' else 'Song' }}</p>
+        <h1>{{ entity.get('name', 'Untitled') }}</h1>
+        <p class="entity-description">
+          {% if entityType == 'song' %}
+            {{ entity.get('artistsText', '') }} · {{ entity.get('album', {}).get('name', '') }}
+          {% elif entityType == 'artist' %}
+            {{ stats.get('uniqueSongs', 0) }} unique songs in your listening history
+          {% else %}
+            {{ stats.get('plays', 0) }} plays from your listening history
+          {% endif %}
+        </p>
+        <div class="entity-actions">
+          {% if entity.get('url') %}
+            <a class="primary-button" href="{{ entity.get('url') }}" target="_blank" rel="noopener noreferrer">Open in Spotify</a>
+          {% endif %}
+          <a class="btn-secondary" href="{{ url_for('dashboard') }}">Back to dashboard</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="entity-stats-grid">
+    <article class="entity-stat-card">
+      <h2>Plays</h2>
+      <p>{{ stats.get('plays', 0) }}</p>
+    </article>
+    <article class="entity-stat-card">
+      <h2>Listening time</h2>
+      <p>{{ stats.get('totalTimeText', '0:00') }}</p>
+    </article>
+    <article class="entity-stat-card">
+      <h2>First listened</h2>
+      <p>{{ stats.get('firstListenedText', 'Never') }}</p>
+    </article>
+    <article class="entity-stat-card">
+      <h2>Last listened</h2>
+      <p>{{ stats.get('lastListenedText', 'Never') }}</p>
+    </article>
+  </section>
+
+  {% if entity.get('spotifyEmbedUrl') %}
+    <section class="entity-player-card">
+      <h2>Listen now</h2>
+      <iframe src="{{ entity.get('spotifyEmbedUrl') }}" width="100%" height="352" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+    </section>
+  {% endif %}
+
+  <section class="entity-history-card">
+    <div class="entity-history-header">
+      <h2>Recent plays</h2>
+      <p>Latest moments this item appeared in your history.</p>
+    </div>
+    {% if relatedTracks %}
+      <div class="track-list">
+        {% for item in relatedTracks %}
+          <article class="track-card compact-card">
+            <div class="track-number">{{ loop.index }}</div>
+            <img class="track-cover" loading="lazy" src="/img/{{ username }}/tracks/{{ item.get('imageId') }}.jpeg" alt="{{ item.get('name', '') }}" onerror="this.style.display='none'" />
+            <div class="track-details">
+              <div class="track-details-top">
+                <h3>{{ item.get('name', '') }}</h3>
+                <div class="track-meta">{{ item.get('artistsText', '') }} · {{ item.get('album', {}).get('name', '') }}</div>
+                {% if item.get('timePlayedText') %}
+                  <div class="track-meta">Played for {{ item.get('timePlayedText') }}</div>
+                {% endif %}
+                {% if item.get('playedAtText') %}
+                  <div class="track-meta">Played at {{ item.get('playedAtText') }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="loading">No plays recorded for this item yet.</p>
+    {% endif %}
+  </section>
+{% endblock %}

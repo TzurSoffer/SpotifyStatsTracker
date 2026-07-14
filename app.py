@@ -110,12 +110,22 @@ class SpotifyDashboardApp:
         if "playedFrom" in song:
             song["contextName"] = self.database.playlistName(song["playedFrom"])
 
-        artistsText = ", ".join(a.get("name", "") for a in song["artists"])
-        releaseDateText = dateToString(song["album"]["releaseDate"])
+        artists = song.get("artists") or []
+        if not isinstance(artists, list):
+            artists = []
+        artistsText = ", ".join(a.get("name", "") for a in artists if isinstance(a, dict))
+
+        album = song.get("album") or {}
+        if not isinstance(album, dict):
+            album = {"name": str(album)}
+        song["album"] = album
+
+        releaseDate = album.get("releaseDate")
+        releaseDateText = dateToString(releaseDate) if releaseDate else ""
         song["releaseDateText"] = releaseDateText
         song["artistsText"] = artistsText
-        song["durationText"] = formatDuration(song["duration"])
-        song["album"]["releaseDateText"] = releaseDateText
+        song["durationText"] = formatDuration(song.get("duration", 0))
+        album["releaseDateText"] = releaseDateText
         return song
 
     def _embedTopSongTextElements(self, song, sortBy=None, totalPlays=0, totalMs=0) -> dict:
@@ -263,6 +273,183 @@ class SpotifyDashboardApp:
         formatted = f"{abs(round(change, 1))}% {'more' if change > 0 else 'less'} than the previous period"
         cssClass = "change-positive" if change > 0 else "change-negative"
         return formatted, cssClass
+
+    def _getSpotifyEmbedUrl(self, entityType: str, entityData) -> str | None:
+        if not entityData:
+            return None
+
+        if entityType == "playlist":
+            if isinstance(entityData, str) and entityData.startswith("http"):
+                return entityData.replace("https://open.spotify.com/playlist/", "https://open.spotify.com/embed/playlist/")
+            if isinstance(entityData, str) and entityData.startswith("playlist:"):
+                playlistId = entityData.split(":", 1)[-1]
+                return f"https://open.spotify.com/embed/playlist/{playlistId}"
+            return None
+
+        if isinstance(entityData, str) and entityData.startswith("http"):
+            identifier = entityData.rstrip("/").split("/")[-1]
+            return f"https://open.spotify.com/embed/{entityType}/{identifier}"
+
+        if isinstance(entityData, str):
+            return f"https://open.spotify.com/embed/{entityType}/{entityData}"
+
+        return None
+
+    def _buildSongDetailContext(self, songId: str):
+        tracks = self.database._loadTracks() or {}
+        track = tracks.get(songId)
+        if not track:
+            return None
+
+        entries = [entry for entry in (self.database._loadEntries() or []) if entry.get("id") == songId]
+        historyItems = []
+        for entry in entries:
+            historyItem = dict(track)
+            historyItem["playedAt"] = entry.get("playedAt")
+            historyItem["timePlayed"] = entry.get("timePlayed", 0)
+            historyItem["playedFrom"] = entry.get("playedFrom")
+            historyItems.append(self._embedSongTextElements(historyItem))
+
+        historyItems.sort(key=lambda item: item.get("playedAt", 0), reverse=True)
+
+        totalTimeMs = sum(item.get("timePlayed", 0) for item in historyItems)
+        plays = len(historyItems)
+        firstPlayedAt = min((item.get("playedAt", 0) for item in historyItems), default=0)
+        lastPlayedAt = max((item.get("playedAt", 0) for item in historyItems), default=0)
+
+        entity = self._embedSongTextElements(dict(track))
+        entity["spotifyEmbedUrl"] = self._getSpotifyEmbedUrl("track", track.get("url"))
+        entity["playCount"] = plays
+        entity["totalTimeMs"] = totalTimeMs
+        entity["firstListenedText"] = convertToDatetime(firstPlayedAt).strftime("%b %d, %Y") if firstPlayedAt else "Never"
+        entity["lastListenedText"] = convertToDatetime(lastPlayedAt).strftime("%b %d, %Y") if lastPlayedAt else "Never"
+
+        return {
+            "entityType": "song",
+            "entity": entity,
+            "stats": {
+                "plays": plays,
+                "totalTimeMs": totalTimeMs,
+                "totalTimeText": msToString(totalTimeMs),
+                "firstListenedText": entity["firstListenedText"],
+                "lastListenedText": entity["lastListenedText"],
+            },
+            "historyItems": historyItems[:8],
+            "relatedTracks": historyItems[:8],
+            "pageTitle": f"{entity['name']} | Spotify Tracker",
+        }
+
+    def _buildArtistDetailContext(self, artistId: str):
+        tracks = self.database._loadTracks() or {}
+        entries = self.database._loadEntries() or []
+        matchingEntries = []
+        relatedTracks = []
+        artistEntity = None
+
+        for entry in entries:
+            track = tracks.get(entry.get("id"))
+            if not track:
+                continue
+            artist = next((item for item in track.get("artists", []) if str(item.get("id", "")) == str(artistId)), None)
+            if not artist:
+                continue
+            if artistEntity is None:
+                artistEntity = dict(artist)
+                artistEntity["imageId"] = artist.get("imageId") or track.get("imageId")
+
+            historyItem = dict(track)
+            historyItem["playedAt"] = entry.get("playedAt")
+            historyItem["timePlayed"] = entry.get("timePlayed", 0)
+            historyItem["playedFrom"] = entry.get("playedFrom")
+            historyItem["artistEntity"] = artist
+            embeddedHistoryItem = self._embedSongTextElements(historyItem)
+            matchingEntries.append(embeddedHistoryItem)
+
+            if not any(str(item.get("id", "")) == str(track.get("id")) for item in relatedTracks):
+                relatedTracks.append(embeddedHistoryItem)
+
+        if not artistEntity:
+            return None
+
+        matchingEntries.sort(key=lambda item: item.get("playedAt", 0), reverse=True)
+        relatedTracks.sort(key=lambda item: item.get("playedAt", 0), reverse=True)
+        totalTimeMs = sum(item.get("timePlayed", 0) for item in matchingEntries)
+        plays = len(matchingEntries)
+        firstPlayedAt = min((item.get("playedAt", 0) for item in matchingEntries), default=0)
+        lastPlayedAt = max((item.get("playedAt", 0) for item in matchingEntries), default=0)
+
+        artistEntity["spotifyEmbedUrl"] = self._getSpotifyEmbedUrl("artist", artistEntity.get("url"))
+        artistEntity["playCount"] = plays
+        artistEntity["totalTimeMs"] = totalTimeMs
+        artistEntity["firstListenedText"] = convertToDatetime(firstPlayedAt).strftime("%b %d, %Y") if firstPlayedAt else "Never"
+        artistEntity["lastListenedText"] = convertToDatetime(lastPlayedAt).strftime("%b %d, %Y") if lastPlayedAt else "Never"
+
+        return {
+            "entityType": "artist",
+            "entity": artistEntity,
+            "stats": {
+                "plays": plays,
+                "totalTimeMs": totalTimeMs,
+                "totalTimeText": msToString(totalTimeMs),
+                "uniqueSongs": len({item.get("id") for item in matchingEntries}),
+                "firstListenedText": artistEntity["firstListenedText"],
+                "lastListenedText": artistEntity["lastListenedText"],
+            },
+            "historyItems": matchingEntries[:8],
+            "relatedTracks": relatedTracks[:8],
+            "pageTitle": f"{artistEntity['name']} | Spotify Tracker",
+        }
+
+    def _buildPlaylistDetailContext(self, playlistId: str):
+        entries = [entry for entry in (self.database._loadEntries() or []) if entry.get("playedFrom") == playlistId]
+        if not entries:
+            return None
+
+        tracks = self.database._loadTracks() or {}
+        relatedTracks = []
+        for entry in entries:
+            track = tracks.get(entry.get("id"))
+            if not track:
+                continue
+            historyItem = dict(track)
+            historyItem["playedAt"] = entry.get("playedAt")
+            historyItem["timePlayed"] = entry.get("timePlayed", 0)
+            historyItem["playedFrom"] = entry.get("playedFrom")
+            relatedTracks.append(self._embedSongTextElements(historyItem))
+
+        relatedTracks.sort(key=lambda item: item.get("playedAt", 0), reverse=True)
+        totalTimeMs = sum(item.get("timePlayed", 0) for item in relatedTracks)
+        plays = len(relatedTracks)
+        firstPlayedAt = min((item.get("playedAt", 0) for item in relatedTracks), default=0)
+        lastPlayedAt = max((item.get("playedAt", 0) for item in relatedTracks), default=0)
+
+        entityName = self.database.playlistName(playlistId) or playlistId.split(":", 1)[-1]
+        entity = {
+            "name": entityName,
+            "id": playlistId,
+            "url": f"https://open.spotify.com/playlist/{playlistId.split(':', 1)[-1]}",
+            "spotifyEmbedUrl": self._getSpotifyEmbedUrl("playlist", playlistId),
+            "imageId": relatedTracks[0].get("imageId") if relatedTracks else None,
+            "playCount": plays,
+            "totalTimeMs": totalTimeMs,
+            "firstListenedText": convertToDatetime(firstPlayedAt).strftime("%b %d, %Y") if firstPlayedAt else "Never",
+            "lastListenedText": convertToDatetime(lastPlayedAt).strftime("%b %d, %Y") if lastPlayedAt else "Never",
+        }
+
+        return {
+            "entityType": "playlist",
+            "entity": entity,
+            "stats": {
+                "plays": plays,
+                "totalTimeMs": totalTimeMs,
+                "totalTimeText": msToString(totalTimeMs),
+                "uniqueSongs": len({item.get("id") for item in relatedTracks}),
+                "firstListenedText": entity["firstListenedText"],
+                "lastListenedText": entity["lastListenedText"],
+            },
+            "relatedTracks": relatedTracks[:8],
+            "pageTitle": f"{entityName} | Spotify Tracker",
+        }
 
     def getPage(self, items, page, pageSize=50):
         """ Gets items in page as well as other data including total pages and start index """
@@ -651,6 +838,39 @@ class SpotifyDashboardApp:
                 customStart=customStart,
                 customEnd=customEnd,
             )
+
+        @self.app.route("/song/<song_id>", methods=["GET"], endpoint="songDetailPage")
+        def songDetailPage(song_id):
+            if not self.isLoggedIn:
+                return redirect(url_for("login", next=request.path))
+
+            context = self._buildSongDetailContext(song_id)
+            if not context:
+                return redirect(url_for("dashboard"))
+
+            return render_template("entity_detail.html", username=self.username, **context)
+
+        @self.app.route("/artist/<artist_id>", methods=["GET"], endpoint="artistDetailPage")
+        def artistDetailPage(artist_id):
+            if not self.isLoggedIn:
+                return redirect(url_for("login", next=request.path))
+
+            context = self._buildArtistDetailContext(artist_id)
+            if not context:
+                return redirect(url_for("dashboard"))
+
+            return render_template("entity_detail.html", username=self.username, **context)
+
+        @self.app.route("/playlist/<path:playlist_id>", methods=["GET"], endpoint="playlistDetailPage")
+        def playlistDetailPage(playlist_id):
+            if not self.isLoggedIn:
+                return redirect(url_for("login", next=request.path))
+
+            context = self._buildPlaylistDetailContext(playlist_id)
+            if not context:
+                return redirect(url_for("dashboard"))
+
+            return render_template("entity_detail.html", username=self.username, **context)
 
     def run(self):
         self.app.run(host="0.0.0.0", debug=True, port=5000, use_reloader=False)#, threaded=False)
