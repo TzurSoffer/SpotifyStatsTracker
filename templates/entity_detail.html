@@ -63,7 +63,8 @@
     {% if relatedTracks %}
       <div class="track-list">
         {% for item in relatedTracks %}
-          <article class="track-card compact-card">
+          {% set card_href = '/song/' ~ (item.get('id') or '')%}
+          <article class="track-card compact-card"{% if card_href %} onclick="if (!event.target.closest('a')) { window.location.href='{{ card_href }}'; }" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!event.target.closest('a')) { window.location.href='{{ card_href }}'; } }" tabindex="0" role="button"{% endif %}>
             <div class="track-number">{{ loop.index }}</div>
             <img class="track-cover" loading="lazy" src="/img/{{ username }}/tracks/{{ item.get('imageId') }}.jpeg" alt="{{ item.get('name', '') }}" onerror="this.style.display='none'" />
             <div class="track-details">
