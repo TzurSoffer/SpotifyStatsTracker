@@ -1023,6 +1023,18 @@ progress::-moz-progress-bar {
   transform: translateY(-2px);
   border-color: rgba(251, 113, 123, 0.28);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24);
+  cursor: pointer;
+}
+
+.track-card:focus-visible {
+  outline: 2px solid rgba(251, 113, 123, 0.5);
+  outline-offset: 3px;
+}
+
+.summary-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
 }
 
 .track-number {

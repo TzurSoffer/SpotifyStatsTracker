@@ -71,10 +71,10 @@
           <div class="summary-card">
             <h2>Top song</h2>
             {% if currentTopSong %}
-              <div class="summary-item">
+              <a class="summary-item summary-link" href="/song/{{ currentTopSong.get('id') or '' }}">
                 <strong>{{ currentTopSong.name }}</strong>
                 <span>{{ currentTopSong.totalTimeListenedText }} listened in this period</span>
-              </div>
+              </a>
             {% else %}
               <p>No songs played in this period.</p>
             {% endif %}
@@ -82,10 +82,10 @@
           <div class="summary-card">
             <h2>Top artist</h2>
             {% if currentTopArtist %}
-              <div class="summary-item">
+              <a class="summary-item summary-link" href="/artist/{{ currentTopArtist.get('id') or '' }}">
                 <strong>{{ currentTopArtist.name }}</strong>
                 <span>{{ currentTopArtist.totalTimeListenedText }} listened in this period</span>
-              </div>
+              </a>
             {% else %}
               <p>No artists played in this period.</p>
             {% endif %}

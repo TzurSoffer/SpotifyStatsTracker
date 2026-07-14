@@ -1,7 +1,8 @@
-<article class="track-card">
-  {% set imgId = track.get('imageId', '') %}
-  {% set item_number = item_number if item_number is defined else '' %}
-  {% set section = section if section is defined else 'dashboard' %}
+{% set imgId = track.get('imageId', '') %}
+{% set item_number = item_number if item_number is defined else '' %}
+{% set section = section if section is defined else 'dashboard' %}
+{% set card_href = '/artist/' ~ (track.get('id') or '') if section == 'top_artists' and track.get('id') else '/song/' ~ (track.get('id') or '') if track.get('id') else '' %}
+<article class="track-card"{% if card_href %} onclick="if (!event.target.closest('a')) { window.location.href='{{ card_href }}'; }" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!event.target.closest('a')) { window.location.href='{{ card_href }}'; } }" tabindex="0" role="button"{% endif %}>
   <div class="track-number">{{ item_number }}</div>
   
   <!-- Image path depends on section -->

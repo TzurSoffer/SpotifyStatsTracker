@@ -684,8 +684,7 @@ class SpotifyDashboardApp:
 
             self._getDateRange(interval, customStart, customEnd, default="day")
             tracks = self.database.getEntriesFromNew()
-            if searchQuery:
-                self._embedIndices(tracks)
+            self._embedIndices(tracks)
             tracks = self._filterBySearch(tracks, searchQuery)
             tracks, totalPages, startIndex = self.getPage(tracks, page)
             tracks = self._embedSongsTextElements(tracks)
