@@ -271,11 +271,6 @@ button {
   line-height: 1.2;
 }
 
-.summary-card p,
-.summary-card ul {
-  margin: 0;
-}
-
 .summary-value {
   font-size: min(2.8rem, 7vw);
   font-weight: 800;
@@ -284,9 +279,12 @@ button {
   overflow-wrap: anywhere;
 }
 
-.summary-item {
-  display: grid;
-  gap: 4px;
+.summary-card strong,
+.summary-card p {
+  color: inherit;
+  font-size: 2rem;
+  font-weight: inherit;
+  margin: 0;
 }
 
 .summary-item strong {

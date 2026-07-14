@@ -43,28 +43,24 @@
             <div class="summary-change {{ totalListenChangeClass }}">{{ totalListenChangeText }}</div>
           {% endif %}
         </div>
-        <div class="summary-card">
+        <a class="summary-card" href="/song/{{ currentTopSong.get('id') or '' }}">
           <h2>Top song</h2>
           {% if currentTopSong %}
-            <a class="summary-item summary-link" href="/song/{{ currentTopSong.get('id') or '' }}">
-              <strong class="summary-value">{{ currentTopSong.name }}</strong>
-              <span>{{ currentTopSong.totalTimeListenedText }} listened in this period</span>
-            </a>
+            <strong class="summary-value">{{ currentTopSong.name }}</strong>
+            <span>{{ currentTopSong.totalTimeListenedText }} listened in this period</span>
           {% else %}
             <p>No songs played in this period.</p>
           {% endif %}
-        </div>
-        <div class="summary-card">
+        </a>
+        <a class="summary-card" href="/artist/{{ currentTopArtist.get('id') or '' }}">
           <h2>Top artist</h2>
           {% if currentTopArtist %}
-            <a class="summary-item summary-link" href="/artist/{{ currentTopArtist.get('id') or '' }}">
-              <strong class="summary-value">{{ currentTopArtist.name }}</strong>
-              <span>{{ currentTopArtist.totalTimeListenedText }} listened in this period</span>
-            </a>
+            <strong class="summary-value">{{ currentTopArtist.name }}</strong>
+            <span>{{ currentTopArtist.totalTimeListenedText }} listened in this period</span>
           {% else %}
             <p>No artists played in this period.</p>
           {% endif %}
-        </div>
+        </a>
       </div>
     </div>
   </section>
