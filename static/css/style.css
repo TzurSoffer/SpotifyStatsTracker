@@ -841,14 +841,6 @@ progress::-moz-progress-bar {
   -webkit-backdrop-filter: blur(12px) saturate(140%);
 }
 
-.track-summary-card:nth-child(1) {
-  background: linear-gradient(135deg, rgba(251, 113, 123, 0.08), rgba(255, 255, 255, 0.02));
-}
-
-.track-summary-card:nth-child(2) {
-  background: linear-gradient(135deg, rgba(104, 211, 145, 0.08), rgba(255, 255, 255, 0.02));
-}
-
 .track-summary-card h3 {
   margin: 0 0 10px;
   color: var(--muted);
