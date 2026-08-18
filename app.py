@@ -577,6 +577,7 @@ class SpotifyDashboardApp:
                 if not cookies:
                     return render_template("login.html", step=2, email=email, error="Cookies required.")
 
+                self.cookiesFile.parent.mkdir(parents=True, exist_ok=True)
                 saveSession(parseCookieString(cookies), email, self.cookiesFile)
                 self.isLoggedIn = True
                 self.startListenerIfNeeded()
